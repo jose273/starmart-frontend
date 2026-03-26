@@ -160,6 +160,14 @@ async function apiFetch(path, options = {}) {
   return res;
 }
 const CURRENCY = "KSh";
+
+// ── Offline-aware error helper ────────────────────────────────────────────────
+function getOfflineError(fallback = "Failed to load data.") {
+  return navigator.onLine
+    ? fallback
+    : "📶 You're offline. This section will reload automatically when your connection is restored.";
+}
+
 const CAT_COLORS = ["#6366f1","#f59e0b","#10b981","#ef4444","#8b5cf6","#06b6d4","#f97316","#84cc16","#ec4899","#14b8a6"];
 const PERMISSIONS = {
   cashier: {
@@ -992,7 +1000,7 @@ function BranchStockEditor({product,branches,onClose}){
       }
       setSaved(true);
       setTimeout(()=>{ setSaved(false); onClose(); },1500);
-    }catch{ setError("Cannot connect to server."); }
+    }catch{setError(getOfflineError("Cannot connect to server.")); }
     setSaving(false);
   };
 
@@ -1051,7 +1059,7 @@ function BranchStockEditor({product,branches,onClose}){
           ⚠️ Branch assignments exceed global stock. The global stock will be used as the authoritative total.
         </div>
       )}
-      {error&&<div style={{background:C.red+"15",border:`1px solid ${C.red}44`,borderRadius:8,padding:"10px 14px",fontSize:15,color:C.red,marginBottom:12}}>⚠️ {error}</div>}
+      {error&&<div style={{background:error.startsWith("📶")?C.amber:C.red+"15",border:`1px solid ${error.startsWith("📶")?C.amber:C.red}44`,borderRadius:8,padding:"10px 14px",fontSize:15,color:error.startsWith("📶")?C.amber:C.red,marginBottom:12}}>{error}</div>}
       {saved&&<div style={{background:C.green+"15",border:`1px solid ${C.green}44`,borderRadius:8,padding:"10px 14px",fontSize:15,color:C.green,marginBottom:12}}>✅ Branch stock saved!</div>}
       <div style={{display:"flex",gap:8}}>
         <Btn variant="ghost" onClick={onClose} style={{flex:1,justifyContent:"center"}}>Cancel</Btn>
@@ -4147,7 +4155,7 @@ function CustomersView({perms}){
       const data=await r.json();
       if(!r.ok) throw new Error(data.error||"Failed to load customers");
       setCustomers(data);
-    }catch(e){setError(e.message);}
+    }catch(e){setError(getOfflineError(e.message));}
     setLoading(false);
   },[]);
 
@@ -4278,7 +4286,7 @@ function CustomersView({perms}){
       </div>
 
       {loading&&<div style={{textAlign:"center",padding:60}}><span style={{width:32,height:32,border:`3px solid ${C.border}`,borderTopColor:C.amber,borderRadius:"50%",display:"inline-block",animation:"spin 0.8s linear infinite"}}/></div>}
-      {error&&<div style={{background:C.red+"15",border:`1px solid ${C.red}44`,borderRadius:8,padding:14,fontSize:15,color:C.red}}>⚠️ {error}</div>}
+      {error&&<div style={{background:error.startsWith("📶")?C.amber+"15":C.red+"15",border:`1px solid ${error.startsWith("📶")?C.amber:C.red}44`,borderRadius:8,padding:14,fontSize:15,color:error.startsWith("📶")?C.amber:C.red}}>{error}</div>}
 
       {/* Customer cards */}
       {!loading&&!error&&(
@@ -4609,7 +4617,7 @@ function RefundsView({perms,branches,activeBranch,fetchProducts}){
       fetchProducts();
       // Auto-print refund receipt
       setTimeout(()=>printRefundReceipt(data.refund), 300);
-    }catch{setError("Cannot connect to server.");}
+    }catch{setError(getOfflineError("Cannot connect to server."));}
     setProcessing(false);
   };
 
@@ -4962,9 +4970,9 @@ function RefundsView({perms,branches,activeBranch,fetchProducts}){
               </div>
 
               {error&&(
-                <div style={{background:C.redGlow,border:`1px solid ${C.red}44`,borderRadius:8,
-                  padding:"10px 14px",marginBottom:12,fontSize:14,color:C.red}}>
-                  ⚠️ {error}
+                <div style={{background:error.startsWith("📶")?C.amberGlow:C.redGlow,border:`1px solid ${error.startsWith("📶")?C.amber:C.red}44`,borderRadius:8,
+                  padding:"10px 14px",marginBottom:12,fontSize:14,color:error.startsWith("📶")?C.amber:C.red}}>
+                  {error}
                 </div>
               )}
 
@@ -5657,7 +5665,7 @@ function ReportsView({perms}){
       })));
     }).catch(e=>{
       console.error(e);
-      setError("Failed to load reports. Is the backend running?");
+      setError(getOfflineError("Failed to load reports. Is the backend running?"));
     }).finally(()=>setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
@@ -6605,7 +6613,7 @@ function StockTransferModal({product,branches,currentBranch,onClose,onDone}){
       const data=await r.json();
       if(!r.ok){setError(data.error||"Request failed.");}
       else{onDone(data.message, data.status);}
-    }catch{setError("Cannot connect to server.");}
+    }catch{setError(getOfflineError("Cannot connect to server."));}
     setLoading(false);
   };
 
@@ -6832,7 +6840,7 @@ function StaffManagement({currentUser}){
       const data=await r.json();
       if(!r.ok) throw new Error(data.error||"Failed to load staff");
       setStaff(data);
-    }catch(e){setError(e.message);}
+    }catch(e){setError(getOfflineError(e.message));}
     setLoading(false);
   },[]);
 
@@ -7387,7 +7395,7 @@ function AllBranchesPanel({onBranchesChanged}){
       setAddModal(false);
       showToast("ok", editTarget ? "Branch updated." : "Branch added.");
       load(); if(onBranchesChanged) onBranchesChanged();
-    }catch{setError("Cannot connect to server.");}
+    }catch{setError(getOfflineError("Cannot connect to server."));}
     setSaving(false);
   };
 
@@ -7851,7 +7859,7 @@ function ProfileModal({user, onClose, onUpdated}){
       const d = await r.json();
       if(!r.ok){ setError(d.error||"Failed to save."); }
       else{ setSuccess("Profile updated successfully!"); onUpdated({name:d.user.name, email:d.user.email, phone:d.user.phone}); }
-    }catch{ setError("Cannot connect to server."); }
+    }catch{setError(getOfflineError("Cannot connect to server.")); }
     setSaving(false);
   };
 
@@ -7865,7 +7873,7 @@ function ProfileModal({user, onClose, onUpdated}){
       const d = await r.json();
       if(!r.ok){ setError(d.error||"Failed to change password."); }
       else{ setSuccess("Password changed successfully!"); setPwForm({current:"", newPw:"", confirm:""}); }
-    }catch{ setError("Cannot connect to server."); }
+    }catch{setError(getOfflineError("Cannot connect to server.")); }
     setSaving(false);
   };
 
@@ -8057,7 +8065,7 @@ function SwitchUserModal({onSwitch,onClose}){
       if(data.requires2FA){setError("This account has 2FA enabled — sign in from the main login screen.");setLoading(false);return;}
       localStorage.setItem("starmart_token",data.token);
       onSwitch({...data.user,perms:PERMISSIONS[data.user.role]});
-    }catch{setError("Cannot connect to server.");}
+    }catch{setError(getOfflineError("Cannot connect to server."));}
     setLoading(false);
   };
 
@@ -8565,7 +8573,4 @@ export default function App(){
       </nav>
     </>
   );
-}                                                                                                                                                          
-
-
-
+}
