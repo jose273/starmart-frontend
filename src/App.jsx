@@ -444,23 +444,29 @@ const GlobalStyle = () => {
       .r-cart-fab{display:flex!important;}
       .r-cart-desktop{display:none!important;}
       .r-cart-drawer{
-        display:block;
-        position:fixed;
-        bottom:64px;left:0;right:0;
+        display:flex!important;
+        flex-direction:column;
+        position:fixed!important;
+        bottom:0!important;
+        left:0!important;right:0!important;
+        width:100%!important;
         z-index:245;
         background:#0D1117;
         border-radius:20px 20px 0 0;
         border-top:1px solid #1F2937;
-        max-height:88vh;overflow-y:auto;
+        max-height:88vh;
+        overflow:hidden;
         transform:translateY(100%);
-        transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+        transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
         padding-bottom:env(safe-area-inset-bottom,0px);
+        will-change:transform;
       }
-      .r-cart-drawer.open{transform:translateY(0);}
+      .r-cart-drawer.open{transform:translateY(0)!important;}
       .r-cart-drawer::before{
         content:'';display:block;width:36px;height:4px;
         background:#374151;border-radius:2px;
-        margin:10px auto 0;
+        margin:12px auto 4px;
+        flex-shrink:0;
       }
       .r-overlay.open{display:block!important;}
 
@@ -2649,7 +2655,7 @@ function POSView({products,setProducts,perms,cart,setCart,selCust,setSelCust,dis
           {/* Overlay */}
           <div className={`r-overlay${cartOpen?" open":""}`} onClick={()=>setCartOpen(false)}/>
           {/* FAB */}
-          <button className="r-cart-fab" onClick={()=>setCartOpen(o=>!o)} style={{position:"relative"}}>
+          <button className="r-cart-fab" onClick={()=>setCartOpen(o=>!o)}>
             🛒
             {cart.length>0&&<span className="r-cart-badge">{cart.reduce((s,x)=>s+x.qty,0)}</span>}
           </button>
@@ -2657,7 +2663,7 @@ function POSView({products,setProducts,perms,cart,setCart,selCust,setSelCust,dis
       )}
 
       {/* ══════════ RIGHT — CART + CHECKOUT ══════════ */}
-      <div className={"r-cart-desktop"+(isMobile?(" r-cart-drawer"+(cartOpen?" open":"")):"") } style={{width:390,flexShrink:0,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden",background:C.sidebar}}>
+      <div className={"r-cart-desktop"+(isMobile?(" r-cart-drawer"+(cartOpen?" open":"")):"") } style={{width:isMobile?undefined:390,flexShrink:0,display:"flex",flexDirection:"column",minHeight:0,overflow:isMobile?"visible":"hidden",background:C.sidebar}}>
 
         {/* Cart header */}
         <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
@@ -7116,9 +7122,11 @@ function StaffManagement({currentUser}){
               const ri=roleInfo(u.role);
               const isSelf=u.id===currentUser.id;
               return(
-                <div key={u.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
+                <div key={u.id} style={{padding:"12px 14px",
                   borderRadius:10,background:isSelf?"rgba(99,102,241,0.06)":"rgba(255,255,255,0.02)",
                   border:`1px solid ${isSelf?C.blue+"33":C.border}`}}>
+                  {/* Row 1: Avatar + Name + Badges + Role + Date */}
+                  <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                   {/* Avatar */}
                   <div style={{width:36,height:36,borderRadius:9,background:ri.color+"20",
                     border:`1.5px solid ${ri.color}44`,display:"flex",alignItems:"center",
@@ -7127,27 +7135,23 @@ function StaffManagement({currentUser}){
                   </div>
                   {/* Name + email */}
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                      <span style={{fontWeight:600,fontSize:15}}>{u.name}</span>
-                      {isSelf&&<span style={{fontSize:14,fontWeight:700,padding:"2px 7px",borderRadius:20,background:C.blue+"20",color:C.blue}}>YOU</span>}
-                      {u.twoFaEnabled&&<span style={{fontSize:14,fontWeight:700,padding:"2px 7px",borderRadius:20,background:C.green+"18",color:C.green}}>2FA</span>}
+                    <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+                      <span style={{fontWeight:700,fontSize:15}}>{u.name}</span>
+                      {/* Role badge */}
+                      <span style={{fontSize:12,fontWeight:700,padding:"2px 8px",borderRadius:20,
+                        background:ri.color+"15",border:`1px solid ${ri.color}33`,color:ri.color,flexShrink:0}}>
+                        {ri.icon} {ri.label.toUpperCase()}
+                      </span>
+                      {isSelf&&<span style={{fontSize:12,fontWeight:700,padding:"2px 7px",borderRadius:20,background:C.blue+"20",color:C.blue,flexShrink:0}}>YOU</span>}
+                      {u.twoFaEnabled&&<span style={{fontSize:12,fontWeight:700,padding:"2px 7px",borderRadius:20,background:C.green+"18",color:C.green,flexShrink:0}}>2FA</span>}
                     </div>
-                    <div style={{fontSize:15,color:C.text3,marginTop:1}}>{u.email}</div>
-                  {u.branchName&&<div style={{fontSize:14,color:C.blue,marginTop:1}}>🏪 {u.branchLocation ? `${u.branchName} · ${u.branchLocation}` : u.branchName}</div>}
+                    <div style={{fontSize:13,color:C.text3,marginTop:2}}>{u.email}</div>
+                    {u.branchName&&<div style={{fontSize:13,color:C.blue,marginTop:1}}>🏪 {u.branchLocation ? `${u.branchName} · ${u.branchLocation}` : u.branchName}</div>}
+                    <div style={{fontSize:12,color:C.text3,marginTop:1}}>{new Date(u.createdAt).toLocaleDateString("en-KE")}</div>
                   </div>
-                  {/* Role badge */}
-                  <div style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,
-                    background:ri.color+"15",border:`1px solid ${ri.color}33`,flexShrink:0}}>
-                    <span style={{fontSize:14}}>{ri.icon}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:ri.color}}>{ri.label.toUpperCase()}</span>
                   </div>
-                  {/* Branch + Joined */}
-                  <div style={{fontSize:14,color:C.text3,flexShrink:0,textAlign:"right"}}>
-                    {u.branch?.name&&<div style={{marginBottom:2,color:C.blue,fontWeight:600}}>🏪 {branchLabel(u.branch)}</div>}
-                    <div>{new Date(u.createdAt).toLocaleDateString("en-KE")}</div>
-                  </div>
-                  {/* Actions */}
-                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                  {/* Row 2: Action buttons */}
+                  <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
                     {!isSelf&&(
                       <button
                         onClick={()=>setRoleTarget({user:u,newRole:u.role})}
