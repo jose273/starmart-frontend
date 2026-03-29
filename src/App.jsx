@@ -365,9 +365,15 @@ const GlobalStyle = () => {
       display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;
       background:#0D1117;border-top:1px solid #1F2937;
       height:56px;
-      align-items:stretch;justify-content:space-around;
+      align-items:stretch;
+      justify-content:space-around;
+      overflow-x:auto;
+      overflow-y:hidden;
+      scrollbar-width:none;
+      -webkit-overflow-scrolling:touch;
       padding-bottom:env(safe-area-inset-bottom,0px);
     }
+    .r-bnav::-webkit-scrollbar{display:none;}
     .r-bnav-btn{
       flex:1;display:flex;flex-direction:column;align-items:center;
       justify-content:center;gap:2px;background:none;border:none;cursor:pointer;
@@ -1821,13 +1827,13 @@ function LoginPage({ onLogin }) {
 }
 
 const ALL_NAV=[
-  {id:"pos",   icon:"M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z", label:"Point of Sale"},
-  {id:"inv",   icon:"M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",                                                                   label:"Inventory"},
-  {id:"cust",  icon:"M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",                    label:"Customers"},
-  {id:"reports",icon:"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",label:"Analytics"},
-  {id:"refunds", icon:"M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6", label:"Refunds"},
+  {id:"pos",     icon:"M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z",  label:"POS"},
+  {id:"inv",     icon:"M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",                                                                    label:"Stock"},
+  {id:"cust",    icon:"M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",                     label:"Customers"},
+  {id:"reports", icon:"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", label:"Stats"},
+  {id:"refunds", icon:"M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",                                                                                            label:"Refunds"},
   {id:"security",icon:"M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", label:"Security"},
-  {id:"settings",icon:"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",label:"Settings"},
+  {id:"settings",icon:"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z", label:"Settings"},
 ];
 const NavIcon=({path,size=18,color="currentColor"})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={path}/></svg>);
 function Sidebar({view,setView,user,onLogout,pendingCount=0}){
@@ -8216,7 +8222,26 @@ export default function App(){
     // Register service worker for offline support
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('/sw.js')
-        .then(()=>console.log('[SW] Registered'))
+        .then((reg)=>{
+          console.log('[SW] Registered');
+          // Check for updates immediately and every 60s
+          reg.update();
+          setInterval(()=>reg.update(), 60000);
+          // When a new SW is waiting, reload to activate it
+          reg.addEventListener('updatefound',()=>{
+            const newSW = reg.installing;
+            if(!newSW) return;
+            newSW.addEventListener('statechange',()=>{
+              if(newSW.state==='installed' && navigator.serviceWorker.controller){
+                // New version ready — reload silently
+                newSW.postMessage({type:'SKIP_WAITING'});
+                navigator.serviceWorker.addEventListener('controllerchange',()=>{
+                  window.location.reload();
+                },{once:true});
+              }
+            });
+          });
+        })
         .catch(e=>console.warn('[SW] Registration failed:',e));
     }
   },[]);
@@ -8596,24 +8621,18 @@ export default function App(){
 
       {/* ── Mobile bottom navigation ──────────────────────────── */}
       <nav className="r-bnav">
-        {[
-          {id:"pos",    icon:"M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z", label:"POS"},
-          {id:"inv",    icon:"M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4", label:"Stock"},
-          {id:"cust",   icon:"M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z", label:"Customers"},
-          {id:"reports",icon:"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z", label:"Stats"},
-          {id:"settings",icon:"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z", label:"More"},
-        ].filter(n=>perms.nav.includes(n.id)).map(n=>(
+        {ALL_NAV.filter(n=>perms.nav.includes(n.id)).map(n=>(
           <button key={n.id} className={`r-bnav-btn${view===n.id?" active":""}`} onClick={()=>setView(n.id)}
-            style={{position:"relative"}}>
+            style={{position:"relative",flex:"1 0 auto",minWidth:52,maxWidth:80}}>
             <div className="r-bnav-dot"/>
-            {n.id==="settings"&&pendingCount>0&&(
-              <span style={{position:"absolute",top:2,right:"calc(50% - 16px)",background:C.amber,color:"#000",
+            {(n.id==="security"||n.id==="settings")&&pendingCount>0&&(
+              <span style={{position:"absolute",top:2,right:"calc(50% - 14px)",background:C.amber,color:"#000",
                 fontSize:10,fontWeight:800,padding:"0px 5px",borderRadius:20,minWidth:16,textAlign:"center",lineHeight:"16px"}}>
                 {pendingCount}
               </span>
             )}
-            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view===n.id?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"><path d={n.icon}/></svg>
-            <span className="r-bnav-label" style={{fontSize:11,fontWeight:view===n.id?700:500,color:view===n.id?"#F0F2F5":"#7A8699",letterSpacing:"0.04em",textTransform:"uppercase"}}>{n.label}</span>
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={view===n.id?2.5:1.8} strokeLinecap="round" strokeLinejoin="round"><path d={n.icon}/></svg>
+            <span className="r-bnav-label" style={{fontSize:10,fontWeight:view===n.id?700:500,color:view===n.id?"#F0F2F5":"#7A8699",letterSpacing:"0.03em",textTransform:"uppercase"}}>{n.label.split(" ")[0]}</span>
           </button>
         ))}
       </nav>
