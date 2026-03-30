@@ -764,7 +764,7 @@ function printBarcode(product, qty = 1, sizeId = "60x40") {
   w.document.close();
 }
 
-const SHOP_DEFAULTS={name:"My Shop",address:"Nairobi, Kenya",email:"",phone:"",thankYou:"Thank you for your business! 🇰🇪",paybill:"",paybillAccount:"POS",till:"",pochiPhone:""};
+const SHOP_DEFAULTS={name:"My Shop",address:"Nairobi, Kenya",email:"",phone:"",thankYou:"Thank you for your business! 🇰🇪",paybill:"",paybillAccount:"POS",till:"",pochiPhone:"",lowStockThreshold:5};
 function getShopSettings(){ try{ return {...SHOP_DEFAULTS,...JSON.parse(localStorage.getItem("starmart_shop")||"{}")}; }catch{ return SHOP_DEFAULTS; } }
 function saveShopSettings(s){ localStorage.setItem("starmart_shop",JSON.stringify(s)); }
 // Fetch settings from DB and cache in localStorage so all roles see up-to-date config
@@ -2051,6 +2051,7 @@ function CustomerSearchPicker({customers, onSelect, onAddNew}){
 
 function POSView({products,setProducts,perms,cart,setCart,selCust,setSelCust,discountValue,setDiscountValue,activeBranch,branches=[],shopSettings:shopSettingsProp,onQueueAdd,delivery,setDelivery}){
   const {isMobile}=useResponsive();
+  const LST=parseInt((shopSettingsProp||getShopSettings()).lowStockThreshold)||5; // low stock threshold
   const [cartOpen,setCartOpen]=useState(false);
   const [posCustomers,setPosCustomers]=useState([]);
   const refreshPosCustomers=()=>{
@@ -2636,15 +2637,15 @@ function POSView({products,setProducts,perms,cart,setCart,selCust,setSelCust,dis
                         KSh {p.price.toLocaleString("en-KE")}
                       </span>
                       <span style={{fontSize:15,fontWeight:700,padding:"2px 9px",borderRadius:20,
-                        background:p.stock<5?C.red+"18":C.green+"12",
-                        color:p.stock<5?C.red:C.green}}>
-                        {oos?"Out":p.stock<5?`Low: ${p.stock}`:`${p.stock}`}
+                        background:p.stock<LST?C.red+"18":C.green+"12",
+                        color:p.stock<LST?C.red:C.green}}>
+                        {oos?"Out":p.stock<LST?`Low: ${p.stock}`:`${p.stock}`}
                       </span>
                     </div>
                     {/* Stock bar */}
                     <div style={{marginTop:8,height:2,borderRadius:2,background:C.border,overflow:"hidden"}}>
                       <div style={{height:"100%",borderRadius:2,width:`${Math.min(100,(p.stock/20)*100)}%`,
-                        background:p.stock<5?C.red:p.stock<10?C.amber:C.green,transition:"width 0.3s"}}/>
+                        background:p.stock<LST?C.red:p.stock<LST*2?C.amber:C.green,transition:"width 0.3s"}}/>
                     </div>
                   </div>
                 );
@@ -3753,7 +3754,7 @@ function BarcodeModal({product,onClose,fetchProducts}){
 }
 
 /* ══════════ INVENTORY VIEW (Real DB + Images) ══════════ */
-function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendingTransfers,setPendingTransfers,fetchPendingTransfers}){
+function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendingTransfers,setPendingTransfers,fetchPendingTransfers,shopSettings:invShopSettings}){
   const [search,setSearch]=useState("");
   const [catFilter,setCatFilter]=useState("All");
   const [barcodeModal,setBarcodeModal]=useState(null);
@@ -3826,7 +3827,59 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
     return matchCat && matchSearch;
   });
   const totalVal=products.reduce((s,p)=>s+p.stock*p.price,0);
-  const lowStock=products.filter(p=>p.stock<5).length;
+  const LOW_STOCK_THRESHOLD = parseInt((invShopSettings||getShopSettings()).lowStockThreshold)||5;
+  const lowStock=products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length;
+
+  // ── Export low-stock items as CSV ────────────────────────────────────────
+  const exportLowStock = () => {
+    const low = products
+      .filter(p => p.stock < LOW_STOCK_THRESHOLD)
+      .sort((a, b) => a.stock - b.stock); // most critical first
+
+    if (!low.length) {
+      alert('✅ No low stock items right now! All products are well stocked.');
+      return;
+    }
+
+    const shopName = (getShopSettings().name || 'STARMART').toUpperCase();
+    const date = new Date().toLocaleDateString('en-KE', { day:'2-digit', month:'short', year:'numeric' });
+    const time = new Date().toLocaleTimeString('en-KE', { hour:'2-digit', minute:'2-digit' });
+
+    // Build CSV
+    const rows = [
+      [`${shopName} — Low Stock Report`],
+      [`Generated: ${date} at ${time}`],
+      [`Threshold: Items with fewer than ${LOW_STOCK_THRESHOLD} units`],
+      [],
+      ['#', 'Product Name', 'SKU', 'Category', 'Current Stock', 'Unit Price (KSh)', 'Stock Value (KSh)', 'Status'],
+      ...low.map((p, i) => [
+        i + 1,
+        p.name,
+        p.sku,
+        p.cat,
+        p.stock,
+        p.price.toFixed(2),
+        (p.stock * p.price).toFixed(2),
+        p.stock === 0 ? 'OUT OF STOCK' : `LOW (${p.stock} left)`,
+      ]),
+      [],
+      [`Total low-stock items: ${low.length}`],
+      [`Total out-of-stock: ${low.filter(p => p.stock === 0).length}`],
+    ];
+
+    const csv = rows.map(r => r.map(cell => '"' + String(cell ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `low-stock-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const allCats=["All",...new Set(products.map(p=>p.cat).filter(Boolean))];
 
   const handleAdd = async (form) => {
@@ -3912,11 +3965,50 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
         ))}
       </div>
 
+      {/* ── Low Stock Alert Banner ── */}
+      {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0&&(
+        <div style={{marginBottom:14,padding:"14px 16px",borderRadius:12,
+          background:"rgba(245,158,11,0.08)",border:`1.5px solid ${C.amber}55`,
+          display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:40,height:40,borderRadius:10,background:"rgba(245,158,11,0.15)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>⚠️</div>
+            <div>
+              <div style={{fontWeight:700,fontSize:15,color:C.amber}}>
+                {products.filter(p=>p.stock===0).length>0
+                  ? `${products.filter(p=>p.stock===0).length} item${products.filter(p=>p.stock===0).length!==1?"s":""} out of stock · ${products.filter(p=>p.stock>0&&p.stock<LOW_STOCK_THRESHOLD).length} running low`
+                  : `${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} item${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length!==1?"s":""} running low`
+                }
+              </div>
+              <div style={{fontSize:13,color:C.text3,marginTop:2}}>
+                Download the report and share with your supplier to reorder
+              </div>
+            </div>
+          </div>
+          <button onClick={exportLowStock}
+            style={{display:"flex",alignItems:"center",gap:8,padding:"9px 18px",borderRadius:9,
+              border:"none",background:C.amber,color:"#000",fontWeight:700,fontSize:14,
+              cursor:"pointer",flexShrink:0,transition:"all 0.15s",whiteSpace:"nowrap"}}
+            onMouseEnter={e=>e.currentTarget.style.filter="brightness(1.1)"}
+            onMouseLeave={e=>e.currentTarget.style.filter="none"}>
+            📥 Download Reorder List
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
         <div style={{flex:1,minWidth:200,position:"relative"}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.text3}}>🔍</span><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products…" style={{paddingLeft:36}}/></div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{allCats.map(c=><button key={c} onClick={()=>setCatFilter(c)} style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.amber:C.border}`,background:catFilter===c?C.amberGlow:"transparent",color:catFilter===c?C.amber:C.text2,fontSize:14,fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>{c}</button>)}</div>
         <button onClick={fetchProducts} title="Refresh" style={{padding:"9px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text2,cursor:"pointer",fontSize:16}}>🔄</button>
+        {/* Low Stock Export button — always visible */}
+        <button onClick={exportLowStock} title={`Download ${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} low stock items as CSV`}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:`1px solid ${C.amber}55`,
+            background:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?"rgba(245,158,11,0.1)":C.card,
+            color:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?C.amber:C.text3,
+            cursor:"pointer",fontSize:14,fontWeight:600,transition:"all 0.15s"}}>
+          📥 {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?`Low Stock (${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length})`:"Export"}
+        </button>
         {perms.inventoryAdd
           ?<Btn onClick={()=>{setFormError("");setAddModal(true);}}>➕ Add Product</Btn>
           :<div style={{padding:"9px 14px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,fontSize:14,color:C.text3}}>👁️ View Only</div>
@@ -3964,7 +4056,7 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
                 ?<img src={p.image} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                 :<span style={{fontSize:52}}>{p.emoji||"📦"}</span>
               }
-              <div style={{position:"absolute",top:8,right:8}}>{p.stock===0?<Tag color={C.red}>Out</Tag>:p.stock<5?<Tag color="#f97316">Low</Tag>:<Tag color={C.green}>In Stock</Tag>}</div>
+              <div style={{position:"absolute",top:8,right:8}}>{p.stock===0?<Tag color={C.red}>Out</Tag>:p.stock<LOW_STOCK_THRESHOLD?<Tag color="#f97316">Low</Tag>:<Tag color={C.green}>In Stock</Tag>}</div>
             </div>
             <div style={{padding:"12px 14px"}}>
               <div style={{fontWeight:700,fontSize:18,marginBottom:3,lineHeight:1.4}}>{p.name}</div>
@@ -3972,7 +4064,7 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                 <span style={{fontFamily:"'DM Mono',monospace",fontSize:18,fontWeight:600,color:C.text,letterSpacing:"-0.02em"}}>KSh {p.price.toLocaleString()}</span>
                 <div style={{textAlign:"right"}}>
-                  <span style={{fontSize:14,fontWeight:700,color:p.stock<=0?C.red:p.stock<5?"#f97316":C.green}}>
+                  <span style={{fontSize:14,fontWeight:700,color:p.stock<=0?C.red:p.stock<LOW_STOCK_THRESHOLD?"#f97316":C.green}}>
                     {p.stock} units
                   </span>
                   {p.globalStock!==p.stock&&<div style={{fontSize:14,color:C.text3}}>Global: {p.globalStock}</div>}
@@ -7654,6 +7746,9 @@ function SettingsView({currentUser,fetchProducts,fetchPendingTransfers,setPendin
     {key:"thankYou", label:"Receipt Message",      placeholder:"Thank you for shopping! 🇰🇪",  icon:"🙏"},
   ];
 
+  // Low stock threshold setting (rendered separately as a number input)
+  const lowStockVal = parseInt(shopForm.lowStockThreshold)||5;
+
   const mpesaFields = [
     {key:"paybill",        label:"Paybill No.",        placeholder:"e.g. 247247", icon:"🏦"},
     {key:"paybillAccount", label:"Paybill Account",    placeholder:"e.g. POS",   icon:"🔢"},
@@ -7688,6 +7783,58 @@ function SettingsView({currentUser,fetchProducts,fetchPendingTransfers,setPendin
           ))}
           <Btn onClick={handleShopSave} style={{alignSelf:"flex-start"}}>
             {shopSaved?"✅ Saved!":"💾 Save Receipt Settings"}
+          </Btn>
+        </div>
+      </Card>
+
+      {/* ── Low Stock Threshold ───────────────────────────────────────────── */}
+      <Card style={{padding:20,marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <div style={{width:36,height:36,borderRadius:10,background:"rgba(245,158,11,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>⚠️</div>
+          <div>
+            <div style={{fontWeight:700,fontSize:16,color:C.amber}}>Low Stock Alert</div>
+            <div style={{fontSize:13,color:C.text3,marginTop:1}}>Items below this quantity are flagged as low stock</div>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:200}}>
+            <label style={{fontSize:13,color:C.text2,fontWeight:600,display:"block",marginBottom:6}}>⚠️ Low Stock Threshold (units)</label>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={()=>setShop("lowStockThreshold",Math.max(1,lowStockVal-1))}
+                style={{width:36,height:36,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,cursor:"pointer",fontSize:20,fontWeight:600}}>−</button>
+              <input
+                type="number" min="1" max="999"
+                value={shopForm.lowStockThreshold??5}
+                onChange={e=>setShop("lowStockThreshold",Math.max(1,parseInt(e.target.value)||1))}
+                style={{width:80,background:"#0D1117",border:`1px solid ${C.amber}55`,color:C.amber,
+                  borderRadius:8,padding:"9px 12px",fontSize:20,fontFamily:"DM Mono,monospace",
+                  textAlign:"center",outline:"none",fontWeight:700}}
+              />
+              <button onClick={()=>setShop("lowStockThreshold",lowStockVal+1)}
+                style={{width:36,height:36,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.text,cursor:"pointer",fontSize:20,fontWeight:600}}>+</button>
+            </div>
+          </div>
+          <div style={{flex:2,minWidth:220}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+              {[5,10,15,20,50].map(v=>(
+                <button key={v} onClick={()=>setShop("lowStockThreshold",v)}
+                  style={{padding:"6px 14px",borderRadius:8,cursor:"pointer",fontSize:14,fontWeight:600,
+                    border:`1px solid ${lowStockVal===v?C.amber:C.border}`,
+                    background:lowStockVal===v?"rgba(245,158,11,0.12)":"transparent",
+                    color:lowStockVal===v?C.amber:C.text2,transition:"all 0.15s"}}>
+                  {v} units
+                </button>
+              ))}
+            </div>
+            <div style={{fontSize:13,color:C.text3,marginTop:8,lineHeight:1.5}}>
+              Products with fewer than <strong style={{color:C.amber}}>{lowStockVal} unit{lowStockVal!==1?"s":""}</strong> will be highlighted red on the POS,
+              flagged in inventory, and included in the reorder export.
+            </div>
+          </div>
+        </div>
+        <div style={{marginTop:14}}>
+          <Btn onClick={handleShopSave} style={{alignSelf:"flex-start"}}>
+            {shopSaved?"✅ Saved!":"💾 Save Threshold"}
           </Btn>
         </div>
       </Card>
@@ -8606,7 +8753,7 @@ export default function App(){
             {view==="pos"&&<ErrorBoundary name="POS">
             <POSView products={products} setProducts={setProducts} perms={perms} cart={cart} setCart={setCart} selCust={selCust} setSelCust={setSelCust} delivery={delivery} setDelivery={setDelivery} discountValue={discountValue} setDiscountValue={setDiscountValue} activeBranch={activeBranch} branches={branches} shopSettings={shopSettings} onQueueAdd={()=>setQueueCount(q=>q+1)}/>
             </ErrorBoundary>}
-            {view==="inv"&&<InventoryView products={products} perms={perms} fetchProducts={fetchProducts} branches={branches} activeBranch={activeBranch} pendingTransfers={pendingTransfers} setPendingTransfers={setPendingTransfers} fetchPendingTransfers={fetchPendingTransfers}/>}
+            {view==="inv"&&<InventoryView products={products} perms={perms} fetchProducts={fetchProducts} branches={branches} activeBranch={activeBranch} pendingTransfers={pendingTransfers} setPendingTransfers={setPendingTransfers} fetchPendingTransfers={fetchPendingTransfers} shopSettings={shopSettings}/>}
             {view==="cust"&&<CustomersView perms={perms}/>}
             {view==="reports"&&<ErrorBoundary name="Analytics"><ReportsView perms={perms}/></ErrorBoundary>}
             {view==="refunds"&&<RefundsView perms={perms} branches={branches} activeBranch={activeBranch} fetchProducts={fetchProducts}/>}
