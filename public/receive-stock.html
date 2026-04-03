@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📷 Receive Stock — STARMART</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#0B0F19;color:#F0F2F5;font-family:'Segoe UI',sans-serif;
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 60px;}
+    a.back{color:#7A8699;font-size:14px;text-decoration:none;
+      display:inline-flex;align-items:center;gap:6px;margin-bottom:20px;align-self:flex-start;}
+    a.back:hover{color:#F0F2F5;}
+    h1{font-size:22px;font-weight:800;margin-bottom:4px;}
+    .sub{font-size:14px;color:#7A8699;margin-bottom:24px;text-align:center;}
+    .card{background:#111827;border:1px solid #1F2937;border-radius:14px;
+      padding:24px;width:100%;max-width:520px;margin-bottom:16px;}
+    label{display:block;font-size:12px;font-weight:700;color:#7A8699;
+      text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+    input,select{width:100%;padding:11px 14px;border-radius:9px;
+      border:1.5px solid #1F2937;background:#0D1117;color:#F0F2F5;
+      font-size:15px;outline:none;font-family:inherit;transition:border-color .15s;}
+    input:focus,select:focus{border-color:#6366F1;}
+    .scan-input{font-family:'Courier New',monospace;font-size:20px;
+      border-color:#22C55E;letter-spacing:.05em;padding-right:44px;}
+    .scan-input:focus{border-color:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.15);}
+    .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:15px;font-weight:700;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;}
+    .btn-green{background:linear-gradient(135deg,#22C55E,#16a34a);color:#000;}
+    .btn-green:hover{filter:brightness(1.1);}
+    .btn-blue{background:linear-gradient(135deg,#6366F1,#4F46E5);color:#fff;}
+    .btn-blue:hover{filter:brightness(1.1);}
+    .btn-ghost{background:transparent;border:1px solid #1F2937;color:#B0BAC8;}
+    .btn-ghost:hover{background:#1F2937;}
+    .btn:disabled{opacity:.4;cursor:not-allowed;filter:none;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .mb{margin-bottom:14px;}
+    .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+      border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.05em;}
+    .b-local{background:rgba(34,197,94,.12);color:#22C55E;border:1px solid rgba(34,197,94,.3);}
+    .b-global{background:rgba(99,102,241,.12);color:#818CF8;border:1px solid rgba(99,102,241,.3);}
+    .b-manual{background:rgba(245,158,11,.12);color:#F59E0B;border:1px solid rgba(245,158,11,.3);}
+    .banner{padding:12px 14px;border-radius:10px;display:flex;align-items:flex-start;
+      gap:10px;margin-bottom:16px;font-size:14px;line-height:1.5;}
+    .ban-loading{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);color:#818CF8;}
+    .ban-found{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#22C55E;}
+    .ban-miss{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:#F59E0B;}
+    .product-row{display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;
+      background:rgba(255,255,255,.03);border:1px solid #1F2937;margin-bottom:16px;}
+    .thumb{width:52px;height:52px;border-radius:10px;background:rgba(255,255,255,.05);
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;
+      font-size:24px;overflow:hidden;}
+    .thumb img{width:100%;height:100%;object-fit:cover;}
+    .qty-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .qbtn{width:44px;height:44px;border-radius:10px;border:1px solid #1F2937;
+      background:transparent;color:#F0F2F5;font-size:22px;cursor:pointer;flex-shrink:0;}
+    .qbtn:hover{background:#1F2937;}
+    .qinput{flex:1;text-align:center;font-size:28px;font-weight:700;
+      color:#6366F1;border-color:rgba(99,102,241,.4);padding:10px;}
+    .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+    .preset{padding:5px 13px;border-radius:8px;border:1px solid #1F2937;
+      background:transparent;color:#B0BAC8;cursor:pointer;font-size:13px;font-weight:600;}
+    .preset:hover,.preset.on{border-color:#6366F1;color:#818CF8;background:rgba(99,102,241,.1);}
+    .stk-preview{display:flex;justify-content:space-between;align-items:center;
+      padding:14px 18px;border-radius:12px;
+      background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.3);margin-bottom:16px;}
+    .success-box{text-align:center;padding:16px 0;}
+    .steps-bar{display:flex;gap:6px;margin-bottom:20px;}
+    .sd{flex:1;height:3px;border-radius:2px;background:#1F2937;transition:background .3s;}
+    .sd.done{background:#22C55E;}.sd.active{background:#6366F1;}
+    #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);
+      padding:11px 22px;border-radius:10px;font-weight:700;font-size:14px;
+      display:none;z-index:9999;}
+    #toast.show{display:block;}
+    #toast.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#22C55E;}
+    #toast.err{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#EF4444;}
+    .step{display:none;}.step.active{display:block;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .sp{width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;
+      border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+    .sp.dk{border-color:rgba(0,0,0,.2);border-top-color:#000;}
+    .hint{font-size:13px;color:#F59E0B;margin-top:5px;}
+  </style>
+</head>
+<body>
+<a href="/" class="back">← Back to STARMART POS</a>
+<h1>📷 Receive Stock</h1>
+<p class="sub">Scan a barcode — product details load automatically<br>from a global product database</p>
+<div id="toast"></div>
+<div class="card">
+  <div class="steps-bar">
+    <div class="sd active" id="d0"></div>
+    <div class="sd" id="d1"></div>
+    <div class="sd" id="d2"></div>
+  </div>
+
+  <!-- STEP 0: Scan -->
+  <div class="step active" id="s0">
+    <div class="mb">
+      <label>Barcode / SKU</label>
+      <div style="position:relative;">
+        <input id="scanIn" class="scan-input" placeholder="Scan barcode or type SKU…" autocomplete="off" autofocus/>
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:20px;opacity:.5;">📷</span>
+      </div>
+      <p style="margin-top:8px;font-size:13px;color:#7A8699;">
+        Press Enter after typing, or just point your scanner — it sends Enter automatically
+      </p>
+    </div>
+    <button class="btn btn-green" id="lookupBtn" onclick="doLookup()">🔍 Look Up Barcode</button>
+  </div>
+
+  <!-- STEP 1a: Receive existing product -->
+  <div class="step" id="s1a">
+    <div class="product-row" id="localCard"></div>
+    <label>Units Being Received</label>
+    <div class="qty-row">
+      <button class="qbtn" onclick="dq(-1)">−</button>
+      <input type="number" id="qtyIn" class="qinput" value="1" min="1" oninput="upPrev()"/>
+      <button class="qbtn" onclick="dq(1)">+</button>
+    </div>
+    <div class="presets">
+      <button class="preset" onclick="sq(5)">+5</button>
+      <button class="preset" onclick="sq(10)">+10</button>
+      <button class="preset" onclick="sq(12)">+12</button>
+      <button class="preset" onclick="sq(24)">+24</button>
+      <button class="preset" onclick="sq(48)">+48</button>
+      <button class="preset" onclick="sq(100)">+100</button>
+    </div>
+    <div class="stk-preview">
+      <div>
+        <div style="font-size:13px;color:#7A8699;">Stock after receiving</div>
+        <div id="newStk" style="font-family:monospace;font-size:26px;font-weight:800;color:#22C55E;">—</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;color:#7A8699;">Adding</div>
+        <div id="addLbl" style="font-family:monospace;font-size:22px;font-weight:700;color:#6366F1;">—</div>
+      </div>
+    </div>
+    <div class="mb"><label>Note (optional)</label>
+      <input type="text" id="noteIn" placeholder="e.g. Supplier: ABC Ltd, Invoice #1234"/></div>
+    <div class="grid2">
+      <button class="btn btn-ghost" onclick="rst()">← Back</button>
+      <button class="btn btn-green" id="rcvBtn" onclick="doReceive()">✅ Receive Units</button>
+    </div>
+  </div>
+
+  <!-- STEP 1b: Add new (with global lookup) -->
+  <div class="step" id="s1b">
+    <div id="banner" style="display:none;"></div>
+
+    <div id="autoCard" style="display:none;" class="product-row mb"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <span id="srcBadge" class="badge b-manual">✏️ MANUAL ENTRY</span>
+      <button id="retryBtn" onclick="retryGlobal()" style="display:none;padding:5px 12px;
+        border-radius:7px;border:1px solid rgba(99,102,241,.3);background:transparent;
+        color:#818CF8;font-size:13px;cursor:pointer;">🔄 Try Again</button>
+    </div>
+
+    <div class="mb"><label>Product Name *</label>
+      <input type="text" id="nName" placeholder="e.g. Versman Millionaire 400ml" oninput="autoSku()"/></div>
+    <div class="grid2 mb">
+      <div><label>Selling Price (KSh) *</label>
+        <input type="number" id="nPrice" placeholder="Set your price"/>
+        <div class="hint" id="priceHint" style="display:none;">
+          💡 Set your local selling price
+        </div>
+      </div>
+      <div><label>Stock Qty *</label>
+        <input type="number" id="nStock" placeholder="e.g. 10"/></div>
+    </div>
+    <div class="grid2 mb">
+      <div><label>SKU</label><input type="text" id="nSku" placeholder="Auto-generated"/></div>
+      <div><label>Barcode</label><input type="text" id="nBarcode"/></div>
+    </div>
+    <div class="mb"><label>Category</label>
+      <select id="nCat">
+        <option>Electronics</option><option>Beauty</option><option>Food</option>
+        <option>Clothing</option><option>Sports</option>
+        <option>Home &amp; Living</option><option>Other</option>
+      </select></div>
+    <div class="grid2 mb">
+      <div><label>Brand</label><input type="text" id="nBrand" placeholder="e.g. Versman"/></div>
+      <div><label>Emoji</label><input type="text" id="nEmoji" value="📦" style="text-align:center;font-size:20px;"/></div>
+    </div>
+    <div id="imgRow" style="display:none;" class="mb">
+      <label>Product Image (auto-fetched)</label>
+      <input type="text" id="nImg"/>
+      <img id="thumbImg" style="margin-top:8px;height:72px;border-radius:8px;
+        object-fit:cover;border:1px solid #1F2937;display:none;" alt=""/>
+    </div>
+
+    <div class="grid2">
+      <button class="btn btn-ghost" onclick="rst()">← Back</button>
+      <button class="btn btn-blue" id="addBtn" onclick="doAdd()">➕ Add to Inventory</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Success -->
+  <div class="step" id="s2">
+    <div class="success-box">
+      <div style="font-size:52px;margin-bottom:12px;" id="sucIcon">✅</div>
+      <div style="font-size:22px;font-weight:800;color:#22C55E;margin-bottom:6px;" id="sucTitle"></div>
+      <div style="font-size:16px;color:#B0BAC8;margin-bottom:4px;" id="sucName"></div>
+      <div style="font-size:14px;color:#7A8699;font-family:monospace;margin-bottom:24px;" id="sucDetail"></div>
+      <div class="grid2">
+        <button class="btn btn-green" onclick="rst()">📷 Scan Another</button>
+        <button class="btn btn-blue" onclick="window.location.href='/'">Done ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = (() => {
+  const h = window.location.hostname;
+  if (h==='localhost'||h==='127.0.0.1') return 'http://localhost:4000';
+  return window.location.origin.includes(':5173')
+    ? window.location.origin.replace(':5173',':4000')
+    : window.location.origin;
+})();
+
+let prods=[], curProd=null, scanCode='', globalData=null;
+
+const tkn  = ()=>localStorage.getItem('starmart_token')||'';
+const api  = (path,opts={})=>{
+  const h={'Content-Type':'application/json'};
+  if(tkn()) h['Authorization']='Bearer '+tkn();
+  return fetch(API_URL+path,{...opts,headers:h});
+};
+const toast=(msg,t='ok')=>{
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast show '+t;
+  clearTimeout(el._t);el._t=setTimeout(()=>el.className='toast',3500);
+};
+const setBtn=(id,loading,label)=>{
+  const b=document.getElementById(id);b.disabled=loading;
+  b.innerHTML=loading?`<span class="sp${id==='addBtn'?'':' dk'}"></span> Please wait…`:label;
+};
+function goStep(n){
+  ['s0','s1a','s1b','s2'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['d0','d1','d2'].forEach((id,i)=>{
+    const d=document.getElementById(id);d.className='sd';
+    if(i<n)d.classList.add('done');if(i===n)d.classList.add('active');
+  });
+  const m={0:'s0','1a':'s1a','1b':'s1b',2:'s2'};
+  document.getElementById(m[n]||'s'+n).classList.add('active');
+}
+function rst(){
+  curProd=null;scanCode='';globalData=null;
+  document.getElementById('scanIn').value='';
+  document.getElementById('noteIn').value='';
+  goStep(0);setTimeout(()=>document.getElementById('scanIn').focus(),80);
+}
+
+// load products
+async function loadProds(){
+  try{const r=await api('/api/products');if(r.ok)prods=await r.json();}catch{}
+}
+loadProds();window.addEventListener('focus',loadProds);
+
+// hardware scanner buffer
+let buf='',buftimer=null;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    const val=buf.trim()||document.getElementById('scanIn').value.trim();
+    if(val&&document.getElementById('s0').classList.contains('active')){
+      document.getElementById('scanIn').value=val;doLookup();
+    }
+    buf='';clearTimeout(buftimer);return;
+  }
+  const focused=document.activeElement?.id;
+  const inputs=['scanIn','qtyIn','nName','nPrice','nStock','nSku','nBarcode','nBrand','nEmoji','nImg','noteIn','nCat'];
+  if(e.key.length===1&&!inputs.includes(focused)){
+    buf+=e.key;clearTimeout(buftimer);buftimer=setTimeout(()=>buf='',120);
+  }
+});
+
+// ── STEP 0 ──────────────────────────────────────────────────────────────────
+async function doLookup(){
+  const code=document.getElementById('scanIn').value.trim();
+  if(!code){toast('⚠️ Enter or scan a barcode / SKU','err');return;}
+  setBtn('lookupBtn',true,'');
+  await loadProds();
+  const local=
+    prods.find(p=>p.barcode===code)||prods.find(p=>p.sku===code)||
+    prods.find(p=>(p.barcode||'').toLowerCase()===code.toLowerCase())||
+    prods.find(p=>(p.sku||'').toLowerCase()===code.toLowerCase());
+  if(local){curProd=local;showReceive(local);setBtn('lookupBtn',false,'🔍 Look Up Barcode');return;}
+  scanCode=code;
+  document.getElementById('nBarcode').value=code;
+  ['nName','nPrice','nStock','nSku','nBrand'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('nEmoji').value='📦';
+  document.getElementById('nImg').value='';
+  document.getElementById('imgRow').style.display='none';
+  document.getElementById('thumbImg').style.display='none';
+  document.getElementById('autoCard').style.display='none';
+  document.getElementById('retryBtn').style.display='none';
+  document.getElementById('priceHint').style.display='none';
+  goStep('1b');
+  setBtn('lookupBtn',false,'🔍 Look Up Barcode');
+  await queryGlobal(code);
+}
+
+// ── Global DB lookup — via backend route (no CORS, all sources) ──────────
+async function queryGlobal(code){
+  showBanner('loading','🌐 Searching global product databases…');
+  setBadge('manual');
+  try{
+    const r = await api('/api/barcode/'+encodeURIComponent(code));
+    if(!r.ok) throw new Error('Backend error '+r.status);
+    const d = await r.json();
+
+    if(d.found){
+      globalData = d;
+      // Build images array from single image field
+      const images = d.image ? [d.image] : [];
+      fillForm({
+        name:     d.name        || '',
+        brand:    d.brand       || '',
+        category: d.category    || 'Other',
+        images,
+        src:      d.source      || 'Global DB',
+      });
+      const srcLabel = d.source || 'Global Database';
+      showBanner('found',
+        '✅ Product found in <strong>'+srcLabel+'</strong> — review details and set your local selling price');
+      setBadge('global', srcLabel);
+
+      // Show tip if no Go-UPC key (response includes tip field)
+      if(d.tip && !d.found){
+        console.info('[Barcode] Tip:', d.tip);
+      }
+    } else {
+      const tip = d.tip || '';
+      showBanner('miss',
+        '⚠️ Barcode not found in global databases — enter product details manually'
+        + (tip ? '<br/><small style="opacity:.7">💡 '+tip+'</small>' : ''));
+      setBadge('manual');
+      document.getElementById('retryBtn').style.display='inline-flex';
+      setTimeout(()=>document.getElementById('nName').focus(),100);
+    }
+  } catch(e) {
+    console.error('[Barcode lookup]', e);
+    showBanner('miss','⚠️ Lookup service unavailable — enter product details manually');
+    setBadge('manual');
+    document.getElementById('retryBtn').style.display='inline-flex';
+    setTimeout(()=>document.getElementById('nName').focus(),100);
+  }
+}
+function retryGlobal(){queryGlobal(scanCode);}
+
+function fillForm(d){
+  if(d.name)  document.getElementById('nName').value =d.name;
+  if(d.brand) document.getElementById('nBrand').value=d.brand;
+  document.getElementById('nCat').value=d.category||'Other';
+  const emap={Electronics:'📱',Beauty:'💄',Food:'🍎',Clothing:'👕',Sports:'⚽','Home & Living':'🏠'};
+  document.getElementById('nEmoji').value=emap[d.category]||'📦';
+  autoSku();
+  const img=d.images?.[0]||'';
+  if(img){
+    document.getElementById('nImg').value=img;
+    document.getElementById('imgRow').style.display='block';
+    const t=document.getElementById('thumbImg');
+    t.src=img;t.style.display='block';
+    t.onerror=()=>{t.style.display='none';};
+  }
+  document.getElementById('priceHint').style.display='block';
+  // Auto preview card
+  const ac=document.getElementById('autoCard');
+  ac.innerHTML=`<div class="thumb">${img?`<img src="${img}" onerror="this.parentNode.textContent='📦'" alt=""/>`:
+    (document.getElementById('nEmoji').value||'📦')}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:700;font-size:16px;">${d.name}</div>
+      <div style="font-size:13px;color:#7A8699;margin-top:2px;">${d.brand}</div>
+      <div style="margin-top:6px;"><span class="badge b-global">🌐 ${d.src}</span></div>
+    </div>`;
+  ac.style.display='flex';
+  setTimeout(()=>document.getElementById('nPrice').focus(),80);
+}
+
+function mapCat(raw){
+  const s=(raw||'').toLowerCase();
+  if(s.match(/electron|phone|comput|tv|audio|camera|headphone/)) return 'Electronics';
+  if(s.match(/beauty|skin|hair|cosmetic|personal|cologne|perfume|deodorant|oil/)) return 'Beauty';
+  if(s.match(/food|drink|beverage|snack|juice|milk|grocery/)) return 'Food';
+  if(s.match(/cloth|shirt|shoe|apparel|fashion/)) return 'Clothing';
+  if(s.match(/sport|gym|fitness/)) return 'Sports';
+  if(s.match(/home|kitchen|furniture|clean/)) return 'Home & Living';
+  return 'Other';
+}
+function showBanner(t,msg){
+  const el=document.getElementById('banner');
+  const ic={loading:'🌐',found:'✅',miss:'⚠️',error:'❌'};
+  el.className='banner ban-'+t;el.style.display='flex';
+  el.innerHTML=`<span style="font-size:18px;flex-shrink:0;">${ic[t]||'ℹ️'}</span><span>${msg}</span>`;
+}
+function setBadge(t,src){
+  const el=document.getElementById('srcBadge');
+  if(t==='global'){el.className='badge b-global';el.textContent='🌐 AUTO-FILLED — '+((src||'').toUpperCase());}
+  else if(t==='local'){el.className='badge b-local';el.textContent='✅ IN YOUR INVENTORY';}
+  else{el.className='badge b-manual';el.textContent='✏️ MANUAL ENTRY';}
+}
+function autoSku(){
+  const name=document.getElementById('nName').value.trim();if(!name)return;
+  const words=name.toUpperCase().split(/\s+/);
+  const pfx=words.length>=2?words.slice(0,2).map(w=>w.slice(0,2)).join(''):words[0].slice(0,4);
+  if(!document.getElementById('nSku').value)
+    document.getElementById('nSku').value=pfx+'-'+Math.floor(1000+Math.random()*9000);
+}
+
+// ── STEP 1a ──────────────────────────────────────────────────────────────────
+function showReceive(p){
+  const th=p.image?`<div class="thumb"><img src="${p.image}" alt=""/></div>`:`<div class="thumb">${p.emoji||'📦'}</div>`;
+  const c=p.stock<=0?'#EF4444':p.stock<5?'#F59E0B':'#22C55E';
+  document.getElementById('localCard').innerHTML=`${th}
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+        <span style="font-weight:700;font-size:17px;">${p.name}</span>
+        <span class="badge b-local">✅ IN STOCK</span>
+      </div>
+      <div style="font-family:monospace;font-size:13px;color:#7A8699;">${p.sku} · ${p.cat}</div>
+      <div style="margin-top:4px;font-size:13px;">
+        Current: <span style="font-family:monospace;font-weight:700;color:${c};">${p.stock} units</span>
+        &nbsp;·&nbsp; KSh ${Number(p.price).toLocaleString('en-KE')}
+      </div>
+    </div>`;
+  document.getElementById('qtyIn').value=1;upPrev();goStep('1a');
+}
+function dq(d){const el=document.getElementById('qtyIn');el.value=Math.max(1,(parseInt(el.value)||0)+d);upPrev();}
+function sq(v){document.getElementById('qtyIn').value=v;upPrev();
+  document.querySelectorAll('.preset').forEach(b=>b.classList.toggle('on',parseInt(b.textContent.replace('+',''))===v));}
+function upPrev(){if(!curProd)return;const q=parseInt(document.getElementById('qtyIn').value)||0;
+  document.getElementById('newStk').textContent=(curProd.stock+q)+' units';
+  document.getElementById('addLbl').textContent='+'+q;}
+async function doReceive(){
+  const qty=parseInt(document.getElementById('qtyIn').value)||0;
+  if(qty<1){toast('⚠️ Enter at least 1 unit','err');return;}
+  setBtn('rcvBtn',true,'');
+  try{
+    const r=await api('/api/products/'+curProd.id,{method:'PATCH',body:JSON.stringify({stock:curProd.stock+qty})});
+    if(r.ok){showSuccess('✅','Stock Updated!',curProd.name,`+${qty} units · now ${curProd.stock+qty} units in stock`);}
+    else{const d=await r.json();toast('❌ '+(d.error||'Update failed'),'err');}
+  }catch{toast('❌ Cannot connect to server','err');}
+  setBtn('rcvBtn',false,'✅ Receive Units');
+}
+
+// ── STEP 1b ──────────────────────────────────────────────────────────────────
+async function doAdd(){
+  const name=document.getElementById('nName').value.trim();
+  const price=parseFloat(document.getElementById('nPrice').value);
+  const stock=parseInt(document.getElementById('nStock').value);
+  if(!name){toast('⚠️ Product name required','err');document.getElementById('nName').focus();return;}
+  if(!price){toast('⚠️ Set your selling price','err');document.getElementById('nPrice').focus();return;}
+  if(!stock){toast('⚠️ Enter stock quantity','err');document.getElementById('nStock').focus();return;}
+  setBtn('addBtn',true,'');
+  try{
+    const r=await api('/api/products',{method:'POST',body:JSON.stringify({
+      name,price,stock,
+      sku:     document.getElementById('nSku').value.trim()||undefined,
+      barcode: document.getElementById('nBarcode').value.trim()||undefined,
+      categoryName:document.getElementById('nCat').value,
+      emoji:   document.getElementById('nEmoji').value||'📦',
+      image:   document.getElementById('nImg').value.trim()||undefined,
+    })});
+    const d=await r.json();
+    if(r.ok){showSuccess('🎉','Product Added!',name,`${stock} units · added to inventory`);}
+    else{toast('❌ '+(d.error||'Failed to add'),'err');}
+  }catch{toast('❌ Cannot connect to server','err');}
+  setBtn('addBtn',false,'➕ Add to Inventory');
+}
+
+// ── Success ───────────────────────────────────────────────────────────────────
+function showSuccess(icon,title,name,detail){
+  document.getElementById('sucIcon').textContent=icon;
+  document.getElementById('sucTitle').textContent=title;
+  document.getElementById('sucName').textContent=name;
+  document.getElementById('sucDetail').textContent=detail;
+  goStep(2);
+}
+window.addEventListener('load',()=>document.getElementById('scanIn').focus());
+</script>
+</body>
+</html>
