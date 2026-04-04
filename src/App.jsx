@@ -616,10 +616,10 @@ const norm = (p) => ({
 
 function printBarcode(product, qty = 1, sizeId = "60x40") {
   const SIZES = {
-    "60x40":  { w:227, h:151, barcodeH:80,  fontSize:12 },
-    "50x30":  { w:189, h:113, barcodeH:60,  fontSize:11 },
-    "38x25":  { w:144, h:94,  barcodeH:48,  fontSize:10 },
-    "100x50": { w:378, h:189, barcodeH:110, fontSize:14 },
+    "60x40":  { w:"60mm",  h:"40mm",  barcodeH:70, fontSize:13 },
+    "50x30":  { w:"50mm",  h:"30mm",  barcodeH:52, fontSize:11 },
+    "38x25":  { w:"38mm",  h:"25mm",  barcodeH:38, fontSize:10 },
+    "100x50": { w:"100mm", h:"50mm",  barcodeH:90, fontSize:14 },
   };
   const sz = SIZES[sizeId] || SIZES["60x40"];
   const barcodeValue = product.barcode || product.sku || "";
@@ -630,92 +630,103 @@ function printBarcode(product, qty = 1, sizeId = "60x40") {
   else if (digits.length === 8)  { format = "EAN8";  displayValue = digits; }
   else if (digits.length === 12) { format = "UPC";   displayValue = digits; }
 
-  const w = window.open("", "_blank", "width=800,height=650");
-  if (!w) { alert("Pop-up blocked — allow pop-ups for this site to print labels."); return; }
+  if (!displayValue) { alert("This product has no barcode or SKU set."); return; }
+
+  const w = window.open("", "_blank", "width=750,height=600");
+  if (!w) { alert("Pop-up blocked — allow pop-ups for this site."); return; }
 
   w.document.write(`<!DOCTYPE html>
 <html>
 <head>
-<title>Labels</title>
+<title>Barcode Labels</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
 <script>
   var FMT="${format}", VAL="${displayValue}";
-  var SZ=${JSON.stringify(sz)}, QTY=${qty};
-  var PROD=${JSON.stringify({name:product.name,sku:product.sku||"",price:product.price,emoji:product.emoji||""})};
+  var W="${sz.w}", H="${sz.h}", BH=${sz.barcodeH}, FS=${sz.fontSize}, QTY=${qty};
 <\/script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:#f8fafc;font-family:Arial,sans-serif;}
-.toolbar{
-  position:fixed;top:0;left:0;right:0;z-index:99;
-  background:#1e293b;color:#fff;padding:10px 16px;
-  display:flex;align-items:center;gap:12px;font-size:13px;
-}
-.toolbar input{width:60px;padding:5px 8px;border:1px solid #475569;
-  border-radius:5px;background:#0f172a;color:#fff;font-size:13px;}
-.btn{padding:7px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
-.btn-update{background:#6366f1;color:#fff;}
-.btn-print{background:#22c55e;color:#000;margin-left:auto;}
-#wrap{padding:60px 16px 16px;display:flex;flex-wrap:wrap;gap:12px;}
-.label{
-  background:#fff;border:1px solid #e2e8f0;border-radius:8px;
-  padding:12px 10px 8px;
-  display:flex;flex-direction:column;align-items:center;
-  box-shadow:0 1px 4px rgba(0,0,0,0.08);
-}
-.label svg{display:block;}
-@media print{
-  .toolbar{display:none!important;}
-  body{background:#fff;}
-  #wrap{padding:0;gap:4mm;}
-  .label{border:0.5px solid #ccc;box-shadow:none;border-radius:2mm;padding:2mm;}
-  @page{margin:3mm;size:auto;}
-}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#f1f5f9;font-family:Arial,sans-serif;}
+  .toolbar{
+    position:fixed;top:0;left:0;right:0;
+    background:#1e293b;color:#fff;
+    padding:10px 16px;display:flex;align-items:center;gap:12px;font-size:13px;z-index:99;
+  }
+  .toolbar input{width:56px;padding:4px 8px;border:1px solid #475569;
+    border-radius:5px;background:#0f172a;color:#fff;font-size:13px;}
+  .btn{padding:7px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
+  .btn-u{background:#6366f1;color:#fff;}
+  .btn-p{background:#22c55e;color:#000;margin-left:auto;}
+  #wrap{
+    padding:56px 12px 12px;
+    display:flex;flex-wrap:wrap;gap:3mm;
+    align-items:flex-start;
+  }
+  /* Each sticker — just the barcode, nothing else */
+  .sticker{
+    width:var(--w);
+    height:var(--h);
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    border:1px solid #e2e8f0;
+    border-radius:2mm;
+  }
+  .sticker svg{ display:block; }
+  @media print {
+    .toolbar{ display:none !important; }
+    body{ background:#fff; }
+    #wrap{ padding:0; gap:2mm; }
+    .sticker{ border:0.5px solid #999; border-radius:1mm; }
+    @page{ margin:2mm; size:auto; }
+  }
 </style>
 </head>
 <body>
 <div class="toolbar">
-  <strong>🖨 Label Preview</strong>
-  <label>Qty: <input id="qtyIn" type="number" min="1" max="500"/></label>
-  <button class="btn btn-update" onclick="build()">Update</button>
-  <button class="btn btn-print" onclick="window.print()">🖨 Print Labels</button>
+  <strong>🖨 Barcode Labels</strong>
+  <span style="color:#64748b;font-size:12px;">${displayValue}</span>
+  <label style="margin-left:8px;">Qty: <input id="qtyIn" type="number" min="1" max="500" value="${qty}"/></label>
+  <button class="btn btn-u" onclick="build()">Update</button>
+  <button class="btn btn-p" onclick="window.print()">🖨 Print</button>
 </div>
 <div id="wrap"></div>
 <script>
-function build(){
-  var q=Math.max(1,Math.min(500,parseInt(document.getElementById('qtyIn').value)||1));
-  var h='';
-  for(var i=0;i<q;i++) h+='<div class="label"><svg id="bc'+i+'"></svg></div>';
-  document.getElementById('wrap').innerHTML=h;
-  setTimeout(function(){
-    document.querySelectorAll('.label svg').forEach(function(el){
-      try{
-        JsBarcode(el,VAL,{
-          format:FMT,
-          width:2,
-          height:SZ.barcodeH,
-          displayValue:true,
-          fontSize:SZ.fontSize,
-          fontOptions:'bold',
-          font:'monospace',
-          textAlign:'center',
-          textPosition:'bottom',
-          textMargin:5,
-          margin:8,
-          background:'#ffffff',
-          lineColor:'#000000',
-        });
-        el.style.maxWidth=(SZ.w-20)+'px';
-        el.style.height='auto';
-      }catch(e){
-        try{JsBarcode(el,VAL,{format:'CODE128',width:2,height:SZ.barcodeH,displayValue:true});}
-        catch(e2){el.outerHTML='<p style="color:red;font-size:10px">Barcode error</p>';}
-      }
-    });
-  },120);
-}
-document.getElementById('qtyIn').value=QTY;
-build();
+  function build(){
+    var q = Math.max(1, Math.min(500, parseInt(document.getElementById('qtyIn').value)||1));
+    var html = '';
+    for(var i=0;i<q;i++){
+      html += '<div class="sticker" style="--w:'+W+';--h:'+H+'"><svg id="bc'+i+'"></svg></div>';
+    }
+    document.getElementById('wrap').innerHTML = html;
+    setTimeout(function(){
+      document.querySelectorAll('.sticker svg').forEach(function(el){
+        try{
+          JsBarcode(el, VAL, {
+            format: FMT,
+            width:  2,
+            height: BH,
+            displayValue: true,
+            fontSize: FS,
+            font: 'monospace',
+            fontOptions: 'bold',
+            textAlign: 'center',
+            textPosition: 'bottom',
+            textMargin: 4,
+            margin: 6,
+            background: '#ffffff',
+            lineColor: '#000000',
+          });
+        }catch(e){
+          try{ JsBarcode(el,VAL,{format:'CODE128',width:2,height:BH,displayValue:true}); }
+          catch(e2){ el.outerHTML='<span style="font-size:9px;color:red">Error</span>'; }
+        }
+      });
+    }, 100);
+  }
+  window.onload = build;
 <\/script>
 </body>
 </html>`);
@@ -4092,26 +4103,238 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
   return(
     <div style={{padding:"12px 10px",overflowY:"auto",height:"100%",overscrollBehavior:"contain",WebkitOverflowScrolling:"touch"}}>
       {/* Stats row */}
-      <div className="r-grid-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
+      <div className="r-grid-stats" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:18}}>
         {[{label:"Total Products",val:products.length,icon:"📦",color:C.blue},{label:"Low Stock Items",val:lowStock,icon:"⚠️",color:C.red},{label:"Inventory Value",val:`KSh ${totalVal.toLocaleString("en-KE",{maximumFractionDigits:0})}`,icon:"💰",color:C.amber}].map(s=>(
           <Card key={s.label} style={{display:"flex",alignItems:"center",gap:12,padding:16}}><div style={{fontSize:26}}>{s.icon}</div><div><div style={{fontFamily:"DM Mono,monospace",fontSize:18,fontWeight:700,color:s.color}}>{s.val}</div><div style={{fontSize:13,color:C.text3}}>{s.label}</div></div></Card>
         ))}
-        {/* Receive Stock card — 4th stat card, always renders */}
-        <Card
-          onClick={()=>setScanModalOpen(true)}
-          style={{display:"flex",alignItems:"center",gap:12,padding:16,
-            cursor:"pointer",border:`2px solid ${C.green}44`,
-            background:`rgba(34,197,94,0.08)`,transition:"all 0.15s"}}
-          hover={true}
-        >
-          <div style={{width:40,height:40,borderRadius:10,background:`rgba(34,197,94,0.2)`,
-            display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📷</div>
-          <div>
-            <div style={{fontFamily:"DM Mono,monospace",fontSize:16,fontWeight:700,color:C.green}}>Receive</div>
-            <div style={{fontSize:13,color:C.text3}}>Scan to add stock</div>
-          </div>
-        </Card>
       </div>
+
+      {/* ── Low Stock Alert Banner ── */}
+      {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0&&(
+        <div style={{marginBottom:14,padding:"14px 16px",borderRadius:12,
+          background:"rgba(245,158,11,0.08)",border:`1.5px solid ${C.amber}55`,
+          display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:40,height:40,borderRadius:10,background:"rgba(245,158,11,0.15)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>⚠️</div>
+            <div>
+              <div style={{fontWeight:700,fontSize:15,color:C.amber}}>
+                {products.filter(p=>p.stock===0).length>0
+                  ? `${products.filter(p=>p.stock===0).length} item${products.filter(p=>p.stock===0).length!==1?"s":""} out of stock · ${products.filter(p=>p.stock>0&&p.stock<LOW_STOCK_THRESHOLD).length} running low`
+                  : `${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} item${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length!==1?"s":""} running low`
+                }
+              </div>
+              <div style={{fontSize:13,color:C.text3,marginTop:2}}>
+                Download the report and share with your supplier to reorder
+              </div>
+            </div>
+          </div>
+          <button onClick={exportLowStock}
+            style={{display:"flex",alignItems:"center",gap:8,padding:"9px 18px",borderRadius:9,
+              border:"none",background:C.amber,color:"#000",fontWeight:700,fontSize:14,
+              cursor:"pointer",flexShrink:0,transition:"all 0.15s",whiteSpace:"nowrap"}}
+            onMouseEnter={e=>e.currentTarget.style.filter="brightness(1.1)"}
+            onMouseLeave={e=>e.currentTarget.style.filter="none"}>
+            📥 Download Reorder List
+          </button>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:200,position:"relative"}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.text3}}>🔍</span><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products…" style={{paddingLeft:36}}/></div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{allCats.map(c=><button key={c} onClick={()=>setCatFilter(c)} style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.amber:C.border}`,background:catFilter===c?C.amberGlow:"transparent",color:catFilter===c?C.amber:C.text2,fontSize:14,fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>{c}</button>)}</div>
+        <button onClick={fetchProducts} title="Refresh" style={{padding:"9px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text2,cursor:"pointer",fontSize:16}}>🔄</button>
+        {/* Low Stock Export button */}
+        <button onClick={exportLowStock} title={`Download ${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} low stock items as CSV`}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:`1px solid ${C.amber}55`,
+            background:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?"rgba(245,158,11,0.1)":C.card,
+            color:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?C.amber:C.text3,
+            cursor:"pointer",fontSize:14,fontWeight:600,transition:"all 0.15s"}}>
+          📥 {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?`Low Stock (${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length})`:"Export"}
+        </button>
+        {/* Barcode scan button */}
+        <button onClick={()=>setScanModalOpen(true)}
+          style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,
+            border:`1px solid ${C.green}44`,background:"rgba(34,197,94,0.08)",
+            color:C.green,cursor:"pointer",fontSize:14,fontWeight:600}}>
+          📷 Scan
+        </button>
+        {perms.inventoryAdd
+          ?<Btn onClick={()=>{setFormError("");setAddModal(true);}}>➕ Add Product</Btn>
+          :<div style={{padding:"9px 14px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,fontSize:14,color:C.text3}}>👁️ View Only</div>
+        }
+      </div>
+
+      {/* Product grid */}
+      {filtered.length===0?(
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"60px 20px",gap:16}}>
+          <div style={{width:80,height:80,borderRadius:20,background:"rgba(245,158,11,0.06)",border:`1px dashed ${C.amber}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36}}>📦</div>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:17,fontWeight:700,color:C.text2,marginBottom:6}}>{search||catFilter!=="All"?"No products match":"No products yet"}</div>
+            <div style={{fontSize:14,color:C.text3}}>{search||catFilter!=="All"?"Try adjusting your search or category filter.":"Add your first product to get started."}</div>
+          </div>
+          {!search&&catFilter==="All"&&perms.inventoryAdd&&<Btn onClick={()=>setAddModal(true)}>➕ Add First Product</Btn>}
+        </div>
+      ):(
+        <div className="r-grid-inv" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+          {filtered.map(p=>{
+            // Safely coerce stock/price — API can return objects or strings
+            const stockNum = typeof p.stock === 'object' ? Number(p.stock?.stock ?? 0) : (Number(p.stock) || 0);
+            const priceNum = Number(p.price) || 0;
+            const oos = stockNum <= 0;
+            const low = stockNum < LOW_STOCK_THRESHOLD && stockNum > 0;
+            // branchStock may be object {branchId,stock,minStock} or a number
+            const _bsRaw = p.branchStock;
+            const branchStock = activeBranch && _bsRaw != null
+              ? (typeof _bsRaw === 'object' ? Number(_bsRaw.stock ?? 0) : Number(_bsRaw))
+              : null;
+            return(
+              <Card key={p.id} style={{padding:0,overflow:"hidden",position:"relative",cursor:"default"}}>
+
+                {/* Stock badge — top right corner */}
+                <div style={{position:"absolute",top:8,right:8,zIndex:2,
+                  padding:"3px 10px",borderRadius:20,fontSize:12,fontWeight:700,
+                  background:oos?C.red+"18":low?C.amber+"18":C.green+"18",
+                  color:oos?C.red:low?C.amber:C.green,
+                  border:`1px solid ${oos?C.red:low?C.amber:C.green}44`}}>
+                  {oos?"Out":low?"Low":"In Stock"}
+                </div>
+
+                {/* Product image / emoji */}
+                <div style={{width:"100%",height:160,background:"rgba(255,255,255,0.03)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:56,overflow:"hidden",borderBottom:`1px solid ${C.border}`}}>
+                  {p.image
+                    ?<img src={p.image} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    :p.emoji||"📦"}
+                </div>
+
+                <div style={{padding:"12px 12px 10px"}}>
+                  {/* Product name */}
+                  <div style={{fontWeight:700,fontSize:15,marginBottom:2,
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {p.name}
+                  </div>
+
+                  {/* SKU · Category */}
+                  <div style={{fontSize:13,color:C.text3,marginBottom:8,
+                    fontFamily:"DM Mono,monospace",letterSpacing:"0.02em"}}>
+                    {p.sku} · {p.cat}
+                  </div>
+
+                  {/* Price row */}
+                  <div style={{display:"flex",justifyContent:"space-between",
+                    alignItems:"center",marginBottom:4}}>
+                    <div style={{fontFamily:"DM Mono,monospace",fontSize:18,
+                      fontWeight:700,color:C.text,letterSpacing:"-0.02em"}}>
+                      KSh {priceNum.toLocaleString("en-KE")}
+                    </div>
+                    <div style={{fontSize:14,fontWeight:600,
+                      color:oos?C.red:low?C.amber:C.green}}>
+                      {stockNum} units
+                    </div>
+                  </div>
+
+                  {/* Global stock (only if branch active and differs) */}
+                  {activeBranch&&branchStock!=null&&stockNum!==branchStock&&(
+                    <div style={{fontSize:12,color:C.text3,marginBottom:6}}>
+                      Global: {stockNum}
+                    </div>
+                  )}
+
+                  {/* Branch pill */}
+                  {activeBranch&&branchStock!=null&&(
+                    <div style={{fontSize:12,color:C.green,marginBottom:8,
+                      padding:"3px 8px",borderRadius:6,display:"inline-block",
+                      background:"rgba(34,197,94,0.1)",border:`1px solid ${C.green}33`,
+                      fontWeight:500}}>
+                      {activeBranch.name}{activeBranch.location?` · ${activeBranch.location}`:""}: {branchStock}
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:4}}>
+                    <button onClick={()=>setBarcodeModal(p)} title="Barcode"
+                      style={{padding:"5px 8px",borderRadius:7,
+                        border:`1px solid ${C.border}`,background:"transparent",
+                        color:p.barcode?C.green:C.text3,cursor:"pointer",fontSize:14}}>
+                      🔲
+                    </button>
+                    {(perms.badge==="ADMIN"||perms.badge==="MANAGER")&&branches.length>1&&(
+                      <button onClick={()=>setTransferModal(p)}
+                        style={{padding:"5px 9px",borderRadius:7,fontSize:13,fontWeight:600,
+                          border:`1px solid ${C.border}`,background:"transparent",
+                          color:C.blue,cursor:"pointer"}}>
+                        Move
+                      </button>
+                    )}
+                    {perms.badge==="ADMIN"&&branches.length>1&&(
+                      <button onClick={()=>setBranchStockModal(p)}
+                        style={{padding:"5px 9px",borderRadius:7,fontSize:13,fontWeight:600,
+                          border:`1px solid ${C.border}`,background:"transparent",
+                          color:C.amber,cursor:"pointer"}}>
+                        Stock
+                      </button>
+                    )}
+                    {perms.inventoryAdd&&(
+                      <button onClick={()=>setEditModal({...p,cat:p.cat||"Electronics"})}
+                        style={{padding:"5px 9px",borderRadius:7,fontSize:13,fontWeight:600,
+                          border:`1px solid ${C.border}`,background:"transparent",
+                          color:C.text2,cursor:"pointer"}}>
+                        Edit
+                      </button>
+                    )}
+                    {perms.inventoryDelete&&(
+                      <button onClick={()=>setDeleteConfirm(p)}
+                        style={{padding:"5px 8px",borderRadius:7,fontSize:14,
+                          border:`1px solid ${C.red}44`,background:"transparent",
+                          color:C.red,cursor:"pointer"}}>
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Pending admin transfers approval section ── */}
+      {perms.badge==="ADMIN"&&pendingTransfers.length>0&&(
+        <div style={{marginTop:20,background:"rgba(99,102,241,0.06)",border:`1px solid ${C.blue}33`,borderRadius:12,padding:"14px 16px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontWeight:700,fontSize:16,color:C.blue}}>📋 Pending Transfer Requests ({pendingTransfers.length})</div>
+            <button onClick={fetchPendingTransfers} style={{background:"none",border:"none",color:C.text3,cursor:"pointer",fontSize:15}}>🔄</button>
+          </div>
+          {pendingTransfers.map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}`,fontSize:14}}>
+              <span style={{fontSize:18}}>{t.product?.emoji||"📦"}</span>
+              <div style={{flex:1}}>
+                <span style={{fontWeight:600}}>{t.product?.name}</span>
+                <span style={{color:C.text3,marginLeft:8}}>×{t.quantity}</span>
+                <span style={{color:C.text3,marginLeft:8}}>{branchLabel(t.fromBranch)} → {branchLabel(t.toBranch)}</span>
+                <span style={{color:C.text3,marginLeft:8}}>by {t.createdBy?.name||"?"}</span>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>handleApprove(t.id)} disabled={approvingId===t.id}
+                  style={{padding:"4px 10px",borderRadius:7,border:`1px solid ${C.green}44`,
+                    background:"rgba(34,197,94,0.1)",color:C.green,cursor:"pointer",fontSize:13,fontWeight:700,
+                    opacity:approvingId===t.id?0.5:1}}>
+                  {approvingId===t.id?"…":"✅ Approve"}
+                </button>
+                <button onClick={()=>handleReject(t.id)} disabled={approvingId===t.id}
+                  style={{padding:"4px 10px",borderRadius:7,border:`1px solid ${C.red}33`,
+                    background:"transparent",color:C.red,cursor:"pointer",fontSize:13,fontWeight:700,
+                    opacity:approvingId===t.id?0.5:1}}>
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
                         {/* ── Receive Stock Modal ── */}
       {scanModalOpen&&(
@@ -8809,31 +9032,7 @@ export default function App(){
           </div>
         </div>
       </div>
-      {/* ── Fixed Receive Stock button — visible on Stock page ── */}
-      {view==="inv"&&(
-        <button
-          onClick={()=>setReceiveStockOpen(true)}
-          style={{
-            position:"fixed",
-            bottom:80,
-            left:"50%",
-            transform:"translateX(-50%)",
-            zIndex:9999,
-            display:"flex",alignItems:"center",gap:8,
-            padding:"12px 24px",
-            borderRadius:50,
-            border:"none",
-            background:`linear-gradient(135deg,${C.green},#16a34a)`,
-            color:"#000",
-            fontSize:15,fontWeight:800,
-            cursor:"pointer",
-            boxShadow:"0 4px 20px rgba(34,197,94,0.5)",
-            whiteSpace:"nowrap",
-          }}
-        >
-          📷 Receive Stock
-        </button>
-      )}
+
 
       {showCreateModal&&<Modal title="Create Staff Account" onClose={()=>setShowCreateModal(false)}><CreateStaffForm branches={branches}/></Modal>}
       {showSwitchModal&&<SwitchUserModal onSwitch={handleSwitch} onClose={()=>setShowSwitchModal(false)}/>}
