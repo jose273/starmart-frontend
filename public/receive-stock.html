@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📷 Receive Stock — STARMART</title>
+  <!-- Vite will NOT process this file since it's in public/ -->
+  <!-- The API URL must be hardcoded or read from localStorage -->
+  <!-- App.jsx stores VITE_API_URL in localStorage as starmart_api_url on init -->
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{background:#0B0F19;color:#F0F2F5;font-family:'Segoe UI',sans-serif;
@@ -212,12 +215,21 @@
 </div>
 
 <script>
+// ── Backend URL ───────────────────────────────────────────────────────────
+// In dev: backend on :4000. In production: set VITE_API_URL in Railway frontend env.
+// Falls back to same-origin (works if backend is proxied via frontend domain).
 const API_URL = (() => {
   const h = window.location.hostname;
-  if (h==='localhost'||h==='127.0.0.1') return 'http://localhost:4000';
-  return window.location.origin.includes(':5173')
-    ? window.location.origin.replace(':5173',':4000')
-    : window.location.origin;
+  // Local development
+  if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:4000';
+  // Production: try to read from meta tag injected at build, else use Railway backend
+  const meta = document.querySelector('meta[name="api-url"]');
+  if (meta) return meta.content;
+  // Fallback: read from localStorage (set by App.jsx on login)
+  const stored = localStorage.getItem('starmart_api_url');
+  if (stored) return stored;
+  // Hard fallback: same origin (works if Vite proxies /api to backend)
+  return window.location.origin;
 })();
 
 let prods=[], curProd=null, scanCode='', globalData=null;
@@ -341,8 +353,9 @@ async function queryGlobal(code){
       setTimeout(()=>document.getElementById('nName').focus(),100);
     }
   } catch(e) {
-    console.error('[Barcode lookup]', e);
-    showBanner('miss','⚠️ Lookup service unavailable — enter product details manually');
+    console.error('[Barcode lookup error]', e.message, 'API_URL:', API_URL);
+    showBanner('miss',
+      '⚠️ Lookup failed: '+e.message+'<br/><small style="opacity:.7">API: '+API_URL+'</small>');
     setBadge('manual');
     document.getElementById('retryBtn').style.display='inline-flex';
     setTimeout(()=>document.getElementById('nName').focus(),100);

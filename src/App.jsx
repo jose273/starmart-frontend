@@ -1,7 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import ReceiveStock from "./ReceiveStock";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+// Store API URL so standalone HTML pages (like receive-stock.html) can find it
+try { localStorage.setItem("starmart_api_url", API_URL); } catch {}
 
 // ── OFFLINE — IndexedDB helpers ──────────────────────────────────────────────
 const IDB_NAME = "starmart_v1";
@@ -613,156 +616,112 @@ const norm = (p) => ({
 
 function printBarcode(product, qty = 1, sizeId = "60x40") {
   const SIZES = {
-    "60x40":  { w:"60mm",  h:"40mm",  nameSize:"8pt",  priceSize:"9pt",  barcodeH:45 },
-    "50x30":  { w:"50mm",  h:"30mm",  nameSize:"7pt",  priceSize:"8pt",  barcodeH:36 },
-    "38x25":  { w:"38mm",  h:"25mm",  nameSize:"6pt",  priceSize:"7pt",  barcodeH:28 },
-    "100x50": { w:"100mm", h:"50mm",  nameSize:"10pt", priceSize:"11pt", barcodeH:55 },
+    "60x40":  { w:227, h:151, barcodeH:80,  fontSize:12 },
+    "50x30":  { w:189, h:113, barcodeH:60,  fontSize:11 },
+    "38x25":  { w:144, h:94,  barcodeH:48,  fontSize:10 },
+    "100x50": { w:378, h:189, barcodeH:110, fontSize:14 },
   };
   const sz = SIZES[sizeId] || SIZES["60x40"];
   const barcodeValue = product.barcode || product.sku || "";
-
-  // Detect format: EAN-13 = 13 digits, EAN-8 = 8 digits, UPC-A = 12 digits, else Code128
   const digits = barcodeValue.replace(/\D/g, "");
   let format = "CODE128";
   let displayValue = barcodeValue;
   if (digits.length === 13) { format = "EAN13"; displayValue = digits; }
-  else if (digits.length === 8) { format = "EAN8"; displayValue = digits; }
-  else if (digits.length === 12) { format = "UPC"; displayValue = digits; }
+  else if (digits.length === 8)  { format = "EAN8";  displayValue = digits; }
+  else if (digits.length === 12) { format = "UPC";   displayValue = digits; }
 
-  const barcodeHeight = sz.barcodeH;
-  const labelHtml = `
-    <div class="label">
-      <div class="product-name">${product.emoji ? product.emoji + " " : ""}${product.name}</div>
-      <div class="sku">SKU: ${product.sku || "—"}</div>
-      <svg id="barcode" data-height="${barcodeHeight}"></svg>
-      <div class="price">KSh ${Number(product.price).toLocaleString("en-KE")}</div>
-    </div>`;
+  const w = window.open("", "_blank", "width=800,height=650");
+  if (!w) { alert("Pop-up blocked — allow pop-ups for this site to print labels."); return; }
 
-  const multiLabel = Array(qty).fill(labelHtml).join("");
-
-  const w = window.open("", "_blank", "width=600,height=500");
-  if (!w) return;
   w.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Barcode Label</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #fff;
-      font-family: 'Arial', sans-serif;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4mm;
-      padding: 4mm;
-    }
-    .label {
-      width: ${sz.w};
-      min-height: ${sz.h};
-      border: 0.5px solid #ddd;
-      border-radius: 2mm;
-      padding: 2mm 3mm;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1mm;
-      background: #fff;
-      page-break-inside: avoid;
-    }
-    .product-name {
-      font-size: ${sz.nameSize};
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.2;
-      max-width: calc(${sz.w} - 6mm);
-      word-break: break-word;
-    }
-    .sku {
-      font-size: calc(${sz.nameSize} - 1pt);
-      color: #555;
-      font-family: monospace;
-    }
-    svg#barcode, .label svg {
-      max-width: calc(${sz.w} - 6mm);
-      height: auto;
-    }
-    .price {
-      font-size: ${sz.priceSize};
-      font-weight: 800;
-      color: #000;
-    }
-    @media print {
-      @page { margin: 3mm; size: auto; }
-      body { gap: 3mm; padding: 0; }
-      .label { border: 0.3px solid #aaa; }
-      .no-print { display: none; }
-    }
-  </style>
+<title>Labels</title>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
+<script>
+  var FMT="${format}", VAL="${displayValue}";
+  var SZ=${JSON.stringify(sz)}, QTY=${qty};
+  var PROD=${JSON.stringify({name:product.name,sku:product.sku||"",price:product.price,emoji:product.emoji||""})};
+<\/script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f8fafc;font-family:Arial,sans-serif;}
+.toolbar{
+  position:fixed;top:0;left:0;right:0;z-index:99;
+  background:#1e293b;color:#fff;padding:10px 16px;
+  display:flex;align-items:center;gap:12px;font-size:13px;
+}
+.toolbar input{width:60px;padding:5px 8px;border:1px solid #475569;
+  border-radius:5px;background:#0f172a;color:#fff;font-size:13px;}
+.btn{padding:7px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:13px;}
+.btn-update{background:#6366f1;color:#fff;}
+.btn-print{background:#22c55e;color:#000;margin-left:auto;}
+#wrap{padding:60px 16px 16px;display:flex;flex-wrap:wrap;gap:12px;}
+.label{
+  background:#fff;border:1px solid #e2e8f0;border-radius:8px;
+  padding:12px 10px 8px;
+  display:flex;flex-direction:column;align-items:center;
+  box-shadow:0 1px 4px rgba(0,0,0,0.08);
+}
+.label svg{display:block;}
+@media print{
+  .toolbar{display:none!important;}
+  body{background:#fff;}
+  #wrap{padding:0;gap:4mm;}
+  .label{border:0.5px solid #ccc;box-shadow:none;border-radius:2mm;padding:2mm;}
+  @page{margin:3mm;size:auto;}
+}
+</style>
 </head>
 <body>
-  <div class="no-print" style="width:100%;padding:8px;background:#f0f4ff;display:flex;align-items:center;gap:12px;font-family:Arial;font-size:13px;">
-    <strong>🖨 Label Preview</strong>
-    <label>Qty: <input id="qtyInput" type="number" min="1" max="100" value="${qty}" style="width:50px;padding:3px;border:1px solid #ccc;border-radius:4px;"/></label>
-    <button onclick="regenerate()" style="padding:4px 12px;background:#4f46e5;color:#fff;border:none;border-radius:4px;cursor:pointer;">Update</button>
-    <button onclick="window.print()" style="padding:4px 12px;background:#22c55e;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-left:auto;">🖨 Print Labels</button>
-  </div>
-  <div id="labels">${multiLabel}</div>
-  <script>
-    const PRODUCT = ${JSON.stringify({ name: product.name, sku: product.sku, price: product.price, emoji: product.emoji || "" })};
-    const FORMAT  = "${format}";
-    const VALUE   = "${displayValue}";
-
-    function renderBarcodes() {
-      document.querySelectorAll("svg#barcode").forEach(function(el) {
-        var h = parseInt(el.getAttribute("data-height")) || 45;
-        var fs = Math.max(9, Math.round(h * 0.24));
-        try {
-          JsBarcode(el, VALUE, {
-            format:       FORMAT,
-            width:        2,
-            height:       h,
-            displayValue: true,
-            fontSize:     fs,
-            fontOptions:  "bold",
-            font:         "monospace",
-            textAlign:    "center",
-            textPosition: "bottom",
-            textMargin:   4,
-            margin:       8,
-            background:   "#ffffff",
-            lineColor:    "#000000",
-            flat:         false,
-          });
-        } catch(e) {
-          JsBarcode(el, VALUE, { format: "CODE128", width: 2, height: h, displayValue: true,
-            fontSize: fs, fontOptions: "bold", font: "monospace", textMargin: 4, margin: 8 });
-        }
-      });
-    }
-
-    }
-
-    function regenerate() {
-      const q = Math.max(1, Math.min(100, parseInt(document.getElementById("qtyInput").value) || 1));
-      const labelHtml = \`
-        <div class="label">
-          <div class="product-name">\${PRODUCT.emoji ? PRODUCT.emoji + " " : ""}\${PRODUCT.name}</div>
-          <div class="sku">SKU: \${PRODUCT.sku || "—"}</div>
-          <svg id="barcode"></svg>
-          <div class="price">KSh \${Number(PRODUCT.price).toLocaleString("en-KE")}</div>
-        </div>\`;
-      document.getElementById("labels").innerHTML = Array(q).fill(labelHtml).join("");
-      renderBarcodes();
-    }
-
-    window.onload = function() { renderBarcodes(); };
-  </script>
+<div class="toolbar">
+  <strong>🖨 Label Preview</strong>
+  <label>Qty: <input id="qtyIn" type="number" min="1" max="500"/></label>
+  <button class="btn btn-update" onclick="build()">Update</button>
+  <button class="btn btn-print" onclick="window.print()">🖨 Print Labels</button>
+</div>
+<div id="wrap"></div>
+<script>
+function build(){
+  var q=Math.max(1,Math.min(500,parseInt(document.getElementById('qtyIn').value)||1));
+  var h='';
+  for(var i=0;i<q;i++) h+='<div class="label"><svg id="bc'+i+'"></svg></div>';
+  document.getElementById('wrap').innerHTML=h;
+  setTimeout(function(){
+    document.querySelectorAll('.label svg').forEach(function(el){
+      try{
+        JsBarcode(el,VAL,{
+          format:FMT,
+          width:2,
+          height:SZ.barcodeH,
+          displayValue:true,
+          fontSize:SZ.fontSize,
+          fontOptions:'bold',
+          font:'monospace',
+          textAlign:'center',
+          textPosition:'bottom',
+          textMargin:5,
+          margin:8,
+          background:'#ffffff',
+          lineColor:'#000000',
+        });
+        el.style.maxWidth=(SZ.w-20)+'px';
+        el.style.height='auto';
+      }catch(e){
+        try{JsBarcode(el,VAL,{format:'CODE128',width:2,height:SZ.barcodeH,displayValue:true});}
+        catch(e2){el.outerHTML='<p style="color:red;font-size:10px">Barcode error</p>';}
+      }
+    });
+  },120);
+}
+document.getElementById('qtyIn').value=QTY;
+build();
+<\/script>
 </body>
 </html>`);
   w.document.close();
 }
+
 
 const SHOP_DEFAULTS={name:"My Shop",address:"Nairobi, Kenya",email:"",phone:"",thankYou:"Thank you for your business! 🇰🇪",paybill:"",paybillAccount:"POS",till:"",pochiPhone:"",lowStockThreshold:5};
 function getShopSettings(){ try{ return {...SHOP_DEFAULTS,...JSON.parse(localStorage.getItem("starmart_shop")||"{}")}; }catch{ return SHOP_DEFAULTS; } }
@@ -3753,13 +3712,245 @@ function BarcodeModal({product,onClose,fetchProducts}){
   );
 }
 
+/* ══════════ RECEIVE STOCK MODAL ══════════ */
+function ReceiveStockModal({product, onClose, onSave}){
+  const [qty, setQty] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState("");
+
+  const handleSave = async () => {
+    if(qty < 1) return;
+    setSaving(true);
+    await onSave(qty, note);
+    setSaving(false);
+  };
+
+  return(
+    <Modal title="📦 Receive Stock" onClose={onClose}>
+      {/* Product info */}
+      <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",
+        background:"rgba(255,255,255,0.03)",borderRadius:10,marginBottom:20,
+        border:`1px solid ${C.border}`}}>
+        <div style={{width:52,height:52,borderRadius:10,overflow:"hidden",flexShrink:0,
+          background:"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>
+          {product.image
+            ?<img src={product.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            :product.emoji||"📦"}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:16}}>{product.name}</div>
+          <div style={{fontSize:13,color:C.text3,fontFamily:"DM Mono,monospace",marginTop:2}}>
+            {product.sku} · {product.cat}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+            <span style={{fontSize:13,color:C.text3}}>Current stock:</span>
+            <span style={{fontFamily:"DM Mono,monospace",fontWeight:700,fontSize:15,
+              color:product.stock<=0?C.red:product.stock<5?C.amber:C.green}}>
+              {product.stock} units
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quantity to receive */}
+      <div style={{marginBottom:18}}>
+        <label style={{fontSize:13,color:C.text2,fontWeight:600,textTransform:"uppercase",
+          letterSpacing:"0.06em",display:"block",marginBottom:10}}>
+          How many units are you receiving?
+        </label>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+          <button onClick={()=>setQty(q=>Math.max(1,q-1))}
+            style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.border}`,
+              background:"transparent",color:C.text,cursor:"pointer",fontSize:22,fontWeight:600}}>−</button>
+          <input type="number" min="1" value={qty}
+            onChange={e=>setQty(Math.max(1,parseInt(e.target.value)||1))}
+            style={{flex:1,background:"#0D1117",border:`1.5px solid ${C.blue}55`,
+              color:C.blue,borderRadius:10,padding:"10px 14px",fontSize:28,
+              fontFamily:"DM Mono,monospace",textAlign:"center",outline:"none",fontWeight:700}}
+          />
+          <button onClick={()=>setQty(q=>q+1)}
+            style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.border}`,
+              background:"transparent",color:C.text,cursor:"pointer",fontSize:22,fontWeight:600}}>+</button>
+        </div>
+        {/* Quick qty presets */}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[5,10,12,24,48,100].map(v=>(
+            <button key={v} onClick={()=>setQty(v)}
+              style={{padding:"5px 14px",borderRadius:8,cursor:"pointer",fontSize:14,fontWeight:600,
+                border:`1px solid ${qty===v?C.blue:C.border}`,
+                background:qty===v?"rgba(99,102,241,0.12)":"transparent",
+                color:qty===v?C.blue:C.text2,transition:"all 0.15s"}}>
+              +{v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* New stock preview */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+        padding:"12px 16px",borderRadius:10,marginBottom:16,
+        background:"rgba(34,197,94,0.08)",border:`1px solid ${C.green}44`}}>
+        <div>
+          <div style={{fontSize:13,color:C.text3}}>New stock after receiving</div>
+          <div style={{fontFamily:"DM Mono,monospace",fontSize:26,fontWeight:800,color:C.green,marginTop:2}}>
+            {product.stock + qty} units
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:13,color:C.text3}}>Adding</div>
+          <div style={{fontFamily:"DM Mono,monospace",fontSize:22,fontWeight:700,color:C.blue}}>
+            +{qty}
+          </div>
+        </div>
+      </div>
+
+      {/* Optional note */}
+      <div style={{marginBottom:18}}>
+        <label style={{fontSize:13,color:C.text2,fontWeight:600,display:"block",marginBottom:6}}>
+          📝 Note (optional — e.g. supplier name, invoice #)
+        </label>
+        <input value={note} onChange={e=>setNote(e.target.value)}
+          placeholder="e.g. Received from ABC Supplier, Invoice #1234"
+          style={{width:"100%",background:"#0D1117",border:`1px solid ${C.border}`,
+            color:C.text,borderRadius:8,padding:"9px 12px",fontSize:14,outline:"none",
+            boxSizing:"border-box"}}
+          onFocus={e=>e.target.style.borderColor=C.blue}
+          onBlur={e=>e.target.style.borderColor=C.border}
+        />
+      </div>
+
+      <div style={{display:"flex",gap:8}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1,justifyContent:"center"}}>Cancel</Btn>
+        <Btn onClick={handleSave} disabled={saving||qty<1} style={{flex:2,justifyContent:"center",
+          background:"linear-gradient(135deg,#22C55E,#16a34a)",color:"#000",fontWeight:700}}>
+          {saving
+            ?<span style={{display:"flex",alignItems:"center",gap:8}}><span style={{width:14,height:14,border:"2px solid #00000040",borderTopColor:"#000",borderRadius:"50%",display:"inline-block",animation:"spin 0.7s linear infinite"}}/>Saving…</span>
+            :`✅ Receive +${qty} Units`}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
 /* ══════════ INVENTORY VIEW (Real DB + Images) ══════════ */
-function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendingTransfers,setPendingTransfers,fetchPendingTransfers,shopSettings:invShopSettings}){
+
+/* ══════════ RECEIVE STOCK MODAL ══════════ */
+function ReceiveStockModal({product, onClose, onSave}){
+  const [qty, setQty] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(()=>{ setTimeout(()=>inputRef.current?.focus(), 100); },[]);
+
+  const handleSave = async () => {
+    if(qty < 1) return;
+    setSaving(true);
+    await onSave(qty);
+    setSaving(false);
+  };
+
+  return(
+    <Modal title="📦 Receive Stock" onClose={onClose}>
+      {/* Product info */}
+      <div style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",
+        borderRadius:12,background:"rgba(99,102,241,0.06)",border:`1px solid ${C.blue}33`,marginBottom:20}}>
+        <div style={{width:52,height:52,borderRadius:12,overflow:"hidden",flexShrink:0,
+          background:"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26}}>
+          {product.image?<img src={product.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:product.emoji||"📦"}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:16,marginBottom:2}}>{product.name}</div>
+          <div style={{fontSize:13,color:C.text3,fontFamily:"DM Mono,monospace"}}>{product.sku}</div>
+          <div style={{fontSize:13,color:C.text3,marginTop:3}}>
+            Current stock: <span style={{color:product.stock<5?C.red:C.green,fontWeight:700}}>{product.stock} units</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quantity input */}
+      <div style={{marginBottom:20}}>
+        <label style={{fontSize:13,color:C.text2,fontWeight:600,letterSpacing:"0.04em",
+          textTransform:"uppercase",display:"block",marginBottom:10}}>
+          How many units are you adding?
+        </label>
+        <div style={{display:"flex",alignItems:"center",gap:12,justifyContent:"center"}}>
+          <button onClick={()=>setQty(q=>Math.max(1,q-1))}
+            style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.border}`,
+              background:"transparent",color:C.text,cursor:"pointer",fontSize:24,fontWeight:600}}>−</button>
+          <input
+            ref={inputRef}
+            type="number" min="1"
+            value={qty}
+            onChange={e=>setQty(Math.max(1,parseInt(e.target.value)||1))}
+            onKeyDown={e=>e.key==="Enter"&&handleSave()}
+            style={{width:100,textAlign:"center",background:"#0D1117",
+              border:`2px solid ${C.blue}`,color:C.text,borderRadius:10,
+              padding:"10px",fontSize:28,fontFamily:"DM Mono,monospace",
+              fontWeight:700,outline:"none"}}
+          />
+          <button onClick={()=>setQty(q=>q+1)}
+            style={{width:44,height:44,borderRadius:10,border:`1px solid ${C.border}`,
+              background:"transparent",color:C.text,cursor:"pointer",fontSize:24,fontWeight:600}}>+</button>
+        </div>
+        {/* Quick qty presets */}
+        <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:12,flexWrap:"wrap"}}>
+          {[5,10,20,50,100].map(v=>(
+            <button key={v} onClick={()=>setQty(v)}
+              style={{padding:"5px 14px",borderRadius:8,cursor:"pointer",fontSize:14,fontWeight:600,
+                border:`1px solid ${qty===v?C.blue:C.border}`,
+                background:qty===v?"rgba(99,102,241,0.12)":"transparent",
+                color:qty===v?C.blue:C.text2,transition:"all 0.15s"}}>
+              +{v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* New total preview */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+        padding:"12px 16px",borderRadius:10,
+        background:"rgba(34,197,94,0.08)",border:`1px solid ${C.green}33`,marginBottom:20}}>
+        <span style={{fontSize:14,color:C.text2}}>New stock total</span>
+        <span style={{fontFamily:"DM Mono,monospace",fontSize:22,fontWeight:700,color:C.green}}>
+          {product.stock + qty} units
+        </span>
+      </div>
+
+      <div style={{display:"flex",gap:8}}>
+        <Btn variant="ghost" onClick={onClose} style={{flex:1,justifyContent:"center"}}>Cancel</Btn>
+        <Btn onClick={handleSave} disabled={saving} style={{flex:2,justifyContent:"center",
+          background:"linear-gradient(135deg,#22C55E,#16a34a)",color:"#000",fontWeight:700}}>
+          {saving
+            ?<span style={{display:"flex",alignItems:"center",gap:8}}>
+               <span style={{width:14,height:14,border:"2px solid #00000040",borderTopColor:"#000",
+                 borderRadius:"50%",display:"inline-block",animation:"spin 0.7s linear infinite"}}/>
+               Saving…
+             </span>
+            :`✅ Add ${qty} unit${qty!==1?"s":""} to Stock`}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
+function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendingTransfers,setPendingTransfers,fetchPendingTransfers,shopSettings:invShopSettings,externalScanOpen,onExternalScanClose}){
   const [search,setSearch]=useState("");
   const [catFilter,setCatFilter]=useState("All");
   const [barcodeModal,setBarcodeModal]=useState(null);
   const [addModal,setAddModal]=useState(false);
   const [editModal,setEditModal]=useState(null);
+  // ── Barcode scanner for inventory receiving ───────────────────────────────
+  const [scanInput,setScanInput]=useState("");
+  const [scanModalOpen,setScanModalOpen]=useState(false);
+  // Sync external open trigger from header button
+  useEffect(()=>{
+    if(externalScanOpen){ setScanModalOpen(true); if(onExternalScanClose) onExternalScanClose(); }
+  },[externalScanOpen]);
+  const [scanReceiveModal,setScanReceiveModal]=useState(null);
+  const [scanToast,setScanToast]=useState(null);
+  const invScanRef=useRef(null);
+  const invScanBuffer=useRef("");
+  const invScanTimer=useRef(null);
   const [saving,setSaving]=useState(false);
   const [formError,setFormError]=useState("");
   const [deleteConfirm,setDeleteConfirm]=useState(null);
@@ -3830,6 +4021,48 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
   const LOW_STOCK_THRESHOLD = parseInt((invShopSettings||getShopSettings()).lowStockThreshold)||5;
   const lowStock=products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length;
 
+  // ── Hardware barcode scanner listener (inventory receiving) ──────────────
+  // Scanners type very fast then send Enter — we detect by keystroke speed
+  useEffect(()=>{
+    const SCAN_SPEED = 50; // ms — faster than human typing
+    let lastKey = 0;
+    const onKey = (e) => {
+      const now = Date.now();
+      const fast = (now - lastKey) < SCAN_SPEED;
+      lastKey = now;
+
+      if(e.key === "Enter"){
+        const buf = invScanBuffer.current.trim();
+        if(buf.length >= 3){
+          // If scan modal is open, let its own handler deal with it
+          if(scanModalOpen) { invScanBuffer.current = ""; return; }
+          // Find product
+          const found = products.find(p=>
+            p.barcode === buf || p.sku === buf ||
+            p.barcode?.toLowerCase() === buf.toLowerCase() ||
+            p.sku?.toLowerCase() === buf.toLowerCase()
+          );
+          if(found){
+            setScanReceiveModal({product:found, isNew:false, barcode:buf});
+          } else {
+            setScanReceiveModal({product:null, isNew:true, barcode:buf});
+          }
+          setScanInput("");
+        }
+        invScanBuffer.current = "";
+        return;
+      }
+
+      if(e.key.length === 1 && (fast || invScanBuffer.current.length > 0)){
+        invScanBuffer.current += e.key;
+        if(invScanTimer.current) clearTimeout(invScanTimer.current);
+        invScanTimer.current = setTimeout(()=>{ invScanBuffer.current = ""; }, 100);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [products]);
+
   // ── Export low-stock items as CSV ────────────────────────────────────────
   const exportLowStock = () => {
     const low = products
@@ -3878,6 +4111,28 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // ── Handle barcode scan in inventory ─────────────────────────────────────
+  const handleInvScan = (code) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    // Always close the scan input modal first
+    setScanModalOpen(false);
+    setScanInput("");
+    // Search by barcode first, then SKU
+    const found =
+      products.find(p => p.barcode === trimmed) ||
+      products.find(p => p.sku === trimmed) ||
+      products.find(p => p.barcode && p.barcode.toLowerCase() === trimmed.toLowerCase()) ||
+      products.find(p => p.sku.toLowerCase() === trimmed.toLowerCase());
+
+    if (found) {
+      setScanReceiveModal({ product: found, isNew: false, barcode: trimmed });
+    } else {
+      // Unknown barcode — open add form pre-filled with barcode
+      setScanReceiveModal({ product: null, isNew: true, barcode: trimmed });
+    }
   };
 
   const allCats=["All",...new Set(products.map(p=>p.cat).filter(Boolean))];
@@ -3959,218 +4214,127 @@ function InventoryView({products,perms,fetchProducts,branches,activeBranch,pendi
   return(
     <div style={{padding:"12px 10px",overflowY:"auto",height:"100%",overscrollBehavior:"contain",WebkitOverflowScrolling:"touch"}}>
       {/* Stats row */}
-      <div className="r-grid-stats" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:18}}>
+      <div className="r-grid-stats" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
         {[{label:"Total Products",val:products.length,icon:"📦",color:C.blue},{label:"Low Stock Items",val:lowStock,icon:"⚠️",color:C.red},{label:"Inventory Value",val:`KSh ${totalVal.toLocaleString("en-KE",{maximumFractionDigits:0})}`,icon:"💰",color:C.amber}].map(s=>(
           <Card key={s.label} style={{display:"flex",alignItems:"center",gap:12,padding:16}}><div style={{fontSize:26}}>{s.icon}</div><div><div style={{fontFamily:"DM Mono,monospace",fontSize:18,fontWeight:700,color:s.color}}>{s.val}</div><div style={{fontSize:13,color:C.text3}}>{s.label}</div></div></Card>
         ))}
-      </div>
-
-      {/* ── Low Stock Alert Banner ── */}
-      {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0&&(
-        <div style={{marginBottom:14,padding:"14px 16px",borderRadius:12,
-          background:"rgba(245,158,11,0.08)",border:`1.5px solid ${C.amber}55`,
-          display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:40,height:40,borderRadius:10,background:"rgba(245,158,11,0.15)",
-              display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>⚠️</div>
-            <div>
-              <div style={{fontWeight:700,fontSize:15,color:C.amber}}>
-                {products.filter(p=>p.stock===0).length>0
-                  ? `${products.filter(p=>p.stock===0).length} item${products.filter(p=>p.stock===0).length!==1?"s":""} out of stock · ${products.filter(p=>p.stock>0&&p.stock<LOW_STOCK_THRESHOLD).length} running low`
-                  : `${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} item${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length!==1?"s":""} running low`
-                }
-              </div>
-              <div style={{fontSize:13,color:C.text3,marginTop:2}}>
-                Download the report and share with your supplier to reorder
-              </div>
-            </div>
-          </div>
-          <button onClick={exportLowStock}
-            style={{display:"flex",alignItems:"center",gap:8,padding:"9px 18px",borderRadius:9,
-              border:"none",background:C.amber,color:"#000",fontWeight:700,fontSize:14,
-              cursor:"pointer",flexShrink:0,transition:"all 0.15s",whiteSpace:"nowrap"}}
-            onMouseEnter={e=>e.currentTarget.style.filter="brightness(1.1)"}
-            onMouseLeave={e=>e.currentTarget.style.filter="none"}>
-            📥 Download Reorder List
-          </button>
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
-        <div style={{flex:1,minWidth:200,position:"relative"}}><span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:C.text3}}>🔍</span><Input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products…" style={{paddingLeft:36}}/></div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{allCats.map(c=><button key={c} onClick={()=>setCatFilter(c)} style={{padding:"5px 14px",borderRadius:20,border:`1px solid ${catFilter===c?C.amber:C.border}`,background:catFilter===c?C.amberGlow:"transparent",color:catFilter===c?C.amber:C.text2,fontSize:14,fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}>{c}</button>)}</div>
-        <button onClick={fetchProducts} title="Refresh" style={{padding:"9px 12px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text2,cursor:"pointer",fontSize:16}}>🔄</button>
-        {/* Low Stock Export button — always visible */}
-        <button onClick={exportLowStock} title={`Download ${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length} low stock items as CSV`}
-          style={{display:"flex",alignItems:"center",gap:6,padding:"9px 14px",borderRadius:8,border:`1px solid ${C.amber}55`,
-            background:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?"rgba(245,158,11,0.1)":C.card,
-            color:products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?C.amber:C.text3,
-            cursor:"pointer",fontSize:14,fontWeight:600,transition:"all 0.15s"}}>
-          📥 {products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length>0?`Low Stock (${products.filter(p=>p.stock<LOW_STOCK_THRESHOLD).length})`:"Export"}
-        </button>
-        {perms.inventoryAdd
-          ?<Btn onClick={()=>{setFormError("");setAddModal(true);}}>➕ Add Product</Btn>
-          :<div style={{padding:"9px 14px",background:C.card,border:`1px solid ${C.border}`,borderRadius:8,fontSize:14,color:C.text3}}>👁️ View Only</div>
-        }
-      </div>
-
-      {/* Product grid */}
-      {filtered.length===0?(
-        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"64px 24px",gap:18}}>
-          <div style={{width:96,height:96,borderRadius:28,
-            background:"linear-gradient(135deg,rgba(99,102,241,0.08),rgba(99,102,241,0.03))",
-            border:`1px dashed ${C.blue}44`,
-            display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-            <svg width={44} height={44} viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth={1.1} opacity={0.55}>
-              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-            <div style={{position:"absolute",top:-5,right:-5,width:16,height:16,borderRadius:"50%",background:C.amber,opacity:0.35}}/>
-            <div style={{position:"absolute",bottom:-3,left:-8,width:10,height:10,borderRadius:"50%",background:C.blue,opacity:0.4}}/>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontSize:20,fontWeight:700,color:C.text2,marginBottom:8}}>
-              {search?"No products found":"Your shelves are empty"}
-            </div>
-            <div style={{fontSize:15,color:C.text3,lineHeight:1.6,maxWidth:240}}>
-              {search
-                ?`Nothing matches "${search}". Try a different name, SKU, or category.`
-                :"Start building your inventory. Add your first product and it'll appear here."}
-            </div>
-          </div>
-          {!search&&perms.inventoryAdd&&(
-            <Btn onClick={()=>{setFormError("");setAddModal(true);}}>
-              ＋ Add First Product
-            </Btn>
-          )}
-        </div>
-      ):(
-      <div className="r-grid-auto" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14,marginBottom:20}}>
-        {filtered.map(p=>(
-          <Card key={p.id} style={{padding:0,overflow:"hidden",transition:"all 0.15s"}} >
-            {/* product image / emoji */}
-            <div style={{height:130,background:"rgba(255,255,255,0.03)",display:"flex",alignItems:"center",justifyContent:"center",borderBottom:`1px solid ${C.border}`,overflow:"hidden",position:"relative"}}>
-              {p.image
-                ?<img src={p.image} alt={p.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                :<span style={{fontSize:52}}>{p.emoji||"📦"}</span>
-              }
-              <div style={{position:"absolute",top:8,right:8}}>{p.stock===0?<Tag color={C.red}>Out</Tag>:p.stock<LOW_STOCK_THRESHOLD?<Tag color="#f97316">Low</Tag>:<Tag color={C.green}>In Stock</Tag>}</div>
-            </div>
-            <div style={{padding:"12px 14px"}}>
-              <div style={{fontWeight:700,fontSize:18,marginBottom:3,lineHeight:1.4}}>{p.name}</div>
-              <div style={{fontSize:14,color:C.text2,fontWeight:500,marginBottom:6,fontFamily:"DM Mono,monospace"}}>{p.sku} · {p.cat}</div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <span style={{fontFamily:"'DM Mono',monospace",fontSize:18,fontWeight:600,color:C.text,letterSpacing:"-0.02em"}}>KSh {p.price.toLocaleString()}</span>
-                <div style={{textAlign:"right"}}>
-                  <span style={{fontSize:14,fontWeight:700,color:p.stock<=0?C.red:p.stock<LOW_STOCK_THRESHOLD?"#f97316":C.green}}>
-                    {p.stock} units
-                  </span>
-                  {p.globalStock!==p.stock&&<div style={{fontSize:14,color:C.text3}}>Global: {p.globalStock}</div>}
-                </div>
-              </div>
-              {/* Per-branch stock breakdown */}
-              {p.branchStock&&p.branchStock.length>0&&(
-                <div style={{marginBottom:8,display:"flex",flexWrap:"wrap",gap:4}}>
-                  {p.branchStock
-                    .filter(bs=>branches.find(b=>b.id===bs.branchId))
-                    .map(bs=>{
-                      const branchObj=branches.find(b=>b.id===bs.branchId);
-                      const branchName=branchLabel(branchObj);
-                      return(
-                        <span key={bs.branchId} style={{fontSize:14,fontWeight:600,padding:"2px 7px",borderRadius:20,
-                          background:bs.stock<5?"rgba(239,68,68,0.1)":"rgba(34,197,94,0.08)",
-                          color:bs.stock<5?C.red:C.green,border:`1px solid ${bs.stock<5?C.red:C.green}22`}}>
-                          {branchName}: {bs.stock}
-                        </span>
-                      );
-                    })}
-                </div>
-              )}
-              <div style={{display:"flex",gap:6}}>
-                {perms.inventoryBarcode&&<button onClick={()=>setBarcodeModal(p)} style={{flex:1,padding:"5px 0",background:C.blueGlow,border:`1px solid ${C.amber}44`,color:C.amber,borderRadius:6,cursor:"pointer",fontSize:15,fontWeight:600}}>🔲</button>}
-                {branches.length>1&&perms.inventoryEdit&&<button onClick={()=>setTransferModal(p)} title="Transfer to another branch" style={{flex:1,padding:"5px 0",background:"rgba(99,102,241,0.1)",border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:6,cursor:"pointer",fontSize:13,fontWeight:600}}>📦 Move</button>}
-                {branches.length>0&&perms.badge==="ADMIN"&&<button onClick={()=>setBranchStockModal(p)} title="Set per-branch stock" style={{flex:1,padding:"5px 0",background:"rgba(34,197,94,0.08)",border:`1px solid ${C.green}44`,color:C.green,borderRadius:6,cursor:"pointer",fontSize:15,fontWeight:600}}>🏪 Stock</button>}
-                {perms.inventoryEdit
-                  ?<button onClick={()=>{setFormError("");setEditModal(p);}} style={{flex:2,padding:"5px 0",background:C.blue+"15",border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:6,cursor:"pointer",fontSize:15,fontWeight:600}}>✏️ Edit</button>
-                  :<span style={{flex:2,padding:"5px 0",fontSize:15,color:C.text3,textAlign:"center"}}>🔒 Read-only</span>
-                }
-                {perms.inventoryDelete&&<button onClick={()=>setDeleteConfirm(p)} style={{padding:"5px 8px",background:C.red+"15",border:`1px solid ${C.red}44`,color:C.red,borderRadius:6,cursor:"pointer",fontSize:13}}>🗑️</button>}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-      )}
-
-      {!perms.inventoryEdit&&(
-        <div style={{background:"rgba(99,102,241,0.08)",border:`1px solid ${C.blue}44`,borderRadius:10,
-          padding:"12px 16px",display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-          <div style={{width:32,height:32,borderRadius:8,background:"rgba(99,102,241,0.15)",
-            display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>👁️</div>
+        {/* Receive Stock card — 4th stat card, always renders */}
+        <Card
+          onClick={()=>setScanModalOpen(true)}
+          style={{display:"flex",alignItems:"center",gap:12,padding:16,
+            cursor:"pointer",border:`2px solid ${C.green}44`,
+            background:`rgba(34,197,94,0.08)`,transition:"all 0.15s"}}
+          hover={true}
+        >
+          <div style={{width:40,height:40,borderRadius:10,background:`rgba(34,197,94,0.2)`,
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>📷</div>
           <div>
-            <div style={{fontWeight:600,fontSize:14,color:C.blue}}>Read-Only Mode</div>
-            <div style={{fontSize:13,color:C.text3,marginTop:1}}>
-              You can browse products and check stock levels. Contact a Manager or Admin to add, edit, or delete products.
-            </div>
+            <div style={{fontFamily:"DM Mono,monospace",fontSize:16,fontWeight:700,color:C.green}}>Receive</div>
+            <div style={{fontSize:13,color:C.text3}}>Scan to add stock</div>
           </div>
-        </div>
-      )}
-      {perms.inventoryEdit&&!perms.inventoryAdd&&<div style={{background:C.blue+"10",border:`1px solid ${C.blue}33`,borderRadius:8,padding:"10px 14px",fontSize:14,color:C.blue,display:"flex",alignItems:"center",gap:8}}>📋 You can edit stock and prices. Contact Admin to add or delete products.</div>}
+        </Card>
+      </div>
 
-      {/* ── PENDING TRANSFER APPROVALS ── admin sees this panel */}
-      {perms.badge==="ADMIN"&&pendingTransfers.length>0&&(
-        <div style={{marginTop:16,background:"rgba(245,158,11,0.06)",border:`1px solid ${C.amber}33`,borderRadius:12,overflow:"hidden"}}>
-          <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.amber}22`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:18}}>📋</span>
+                        {/* ── Receive Stock Modal ── */}
+      {scanModalOpen&&(
+        <Modal title="📷 Receive Stock via Barcode" onClose={()=>{setScanModalOpen(false);setScanInput("");}}>
+          <div style={{marginBottom:16,fontSize:15,color:C.text2,lineHeight:1.6}}>
+            Point your barcode scanner at any product, or type a barcode/SKU manually.
+            <br/>The system will find the product and let you add stock.
+          </div>
+          <div style={{position:"relative",marginBottom:8}}>
+            <input
+              ref={invScanRef}
+              value={scanInput}
+              onChange={e=>setScanInput(e.target.value)}
+              onKeyDown={e=>{
+                if(e.key==="Enter"&&scanInput.trim()){
+                  const val = scanInput.trim();
+                  setScanModalOpen(false);
+                  setScanInput("");
+                  setTimeout(()=>handleInvScan(val), 50);
+                }
+              }}
+              placeholder="Scan barcode or type SKU and press Enter…"
+              autoFocus
+              style={{
+                width:"100%",background:"#0D1117",
+                border:`2px solid ${C.green}`,
+                borderRadius:10,padding:"14px 16px",
+                color:C.text,fontSize:18,outline:"none",
+                fontFamily:"DM Mono,monospace",boxSizing:"border-box",
+                letterSpacing:"0.05em"
+              }}
+            />
+            <div style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",
+              fontSize:22,pointerEvents:"none"}}>📷</div>
+          </div>
+          <div style={{fontSize:13,color:C.text3,marginBottom:20}}>
+            Press <kbd style={{background:C.border,padding:"2px 8px",borderRadius:4,fontFamily:"monospace"}}>Enter</kbd> after scanning or typing
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <Btn variant="ghost" onClick={()=>{setScanModalOpen(false);setScanInput("");}} style={{flex:1,justifyContent:"center"}}>Cancel</Btn>
+            <Btn onClick={()=>{if(scanInput.trim()){const v=scanInput.trim();setScanModalOpen(false);setScanInput("");setTimeout(()=>handleInvScan(v),50);}}} disabled={!scanInput.trim()} style={{flex:2,justifyContent:"center",background:`linear-gradient(135deg,${C.green},#16a34a)`,color:"#000",fontWeight:700}}>
+              🔍 Look Up Product
+            </Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── SCAN RECEIVE MODAL ── */}
+      {scanReceiveModal&&(()=>{
+        const {product, isNew, barcode} = scanReceiveModal;
+        return isNew ? (
+          // Unknown barcode — show Add Product form pre-filled
+          <Modal title="➕ New Product — Add to Inventory" onClose={()=>setScanReceiveModal(null)} wide>
+            <div style={{background:"rgba(34,197,94,0.06)",border:`1px solid ${C.green}44`,
+              borderRadius:10,padding:"10px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>🔲</span>
               <div>
-                <div style={{fontWeight:700,fontSize:16,color:C.amber}}>Pending Transfer Requests</div>
-                <div style={{fontSize:15,color:C.text3}}>{pendingTransfers.length} request{pendingTransfers.length!==1?"s":""} awaiting your approval</div>
+                <div style={{fontWeight:700,fontSize:14,color:C.green}}>New barcode scanned</div>
+                <div style={{fontSize:13,color:C.text3,fontFamily:"DM Mono,monospace"}}>{barcode}</div>
               </div>
             </div>
-            <button onClick={fetchPendingTransfers} style={{background:"none",border:"none",color:C.text3,cursor:"pointer",fontSize:15}}>🔄</button>
-          </div>
-          <div style={{padding:"8px 0"}}>
-            {pendingTransfers.map(t=>(
-              <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderBottom:`1px solid rgba(245,158,11,0.1)`}}>
-                <span style={{fontSize:18,flexShrink:0}}>{t.product.emoji||"📦"}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:600,fontSize:15}}>{t.product.name} <span style={{fontFamily:"DM Mono,monospace",color:C.amber}}>×{t.quantity}</span></div>
-                  <div style={{fontSize:15,color:C.text3}}>
-                    <span style={{color:"#f87171"}}>{branchLabel(t.fromBranch)}</span>
-                    <span style={{margin:"0 5px"}}>→</span>
-                    <span style={{color:C.green}}>{branchLabel(t.toBranch)}</span>
-                    {t.notes&&<span style={{marginLeft:6,color:C.text3}}>· {t.notes}</span>}
-                  </div>
-                  <div style={{fontSize:14,color:C.text3,marginTop:1}}>Requested by {t.createdBy?.name||"—"} · {new Date(t.createdAt).toLocaleDateString("en-KE")}</div>
-                </div>
-                <div style={{display:"flex",gap:6,flexShrink:0}}>
-                  <button
-                    onClick={()=>handleApprove(t.id)}
-                    disabled={!!approvingId}
-                    style={{padding:"5px 14px",borderRadius:7,border:`1px solid ${C.green}44`,background:`${C.green}12`,
-                      color:C.green,cursor:"pointer",fontSize:14,fontWeight:700,transition:"all 0.15s",opacity:approvingId===t.id?0.6:1}}
-                    onMouseEnter={e=>e.currentTarget.style.background=`${C.green}25`}
-                    onMouseLeave={e=>e.currentTarget.style.background=`${C.green}12`}>
-                    {approvingId===t.id?"…":"✅ Approve"}
-                  </button>
-                  <button
-                    onClick={()=>handleReject(t.id)}
-                    disabled={!!approvingId}
-                    style={{padding:"5px 12px",borderRadius:7,border:`1px solid ${C.red}33`,background:"transparent",
-                      color:C.red,cursor:"pointer",fontSize:14,fontWeight:600,transition:"all 0.15s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.redGlow}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+            <ProductForm
+              initial={{barcode, sku:"", name:"", price:"", stock:"", cat:"Electronics", emoji:"📦", image:""}}
+              onSave={async(form)=>{
+                await handleAdd(form);
+                setScanReceiveModal(null);
+                setScanToast({type:"ok",msg:`✅ Product added to inventory`});
+                setTimeout(()=>setScanToast(null),3000);
+              }}
+              onClose={()=>setScanReceiveModal(null)}
+              loading={saving}
+              error={formError}
+              isEdit={false}
+            />
+          </Modal>
+        ) : (
+          // Known product — quick stock receive
+          <ReceiveStockModal
+            product={product}
+            onClose={()=>setScanReceiveModal(null)}
+            onSave={async(qty)=>{
+              const newStock = product.stock + qty;
+              try{
+                const r = await apiFetch(`/api/products/${product.id}`,{
+                  method:"PATCH",
+                  body:JSON.stringify({stock:newStock, branchId:activeBranch?.id||null}),
+                });
+                if(r.ok){
+                  await fetchProducts(undefined,{skipCache:true});
+                  setScanReceiveModal(null);
+                  setScanToast({type:"ok",msg:`✅ +${qty} units added to ${product.name} (now ${newStock})`});
+                  setTimeout(()=>setScanToast(null),3500);
+                }
+              }catch{
+                setScanToast({type:"err",msg:"Failed to update stock."});
+                setTimeout(()=>setScanToast(null),3000);
+              }
+            }}
+          />
+        );
+      })()}
 
       {/* ADD modal */}
       {addModal&&<Modal title="Add New Product" onClose={()=>setAddModal(false)} wide>
@@ -8312,6 +8476,8 @@ export default function App(){
   const [showCreateModal,setShowCreateModal]=useState(false);
   const [showSwitchModal,setShowSwitchModal]=useState(false);
   const [showProfileModal,setShowProfileModal]=useState(false);
+  const [invScanOpen,setInvScanOpen]=useState(false); // inventory receive stock modal
+  const [receiveStockOpen,setReceiveStockOpen]=useState(false);
   const [user,setUser]=useState(null);
   const [pendingCount,setPendingCount]=useState(0); // pending staff approvals
   const [view,setView]=useState("pos");
@@ -8369,7 +8535,7 @@ export default function App(){
 
   useEffect(()=>{
     // Register service worker for offline support
-    if('serviceWorker' in navigator){
+    if('serviceWorker' in navigator && import.meta.env.PROD){
       navigator.serviceWorker.register('/sw.js')
         .then((reg)=>{
           console.log('[SW] Registered');
@@ -8702,6 +8868,7 @@ export default function App(){
               {/* Location */}
               <div className="r-header-chip r-header-loc" style={{padding:"5px 10px",borderRadius:6,background:C.border,fontSize:15,color:C.text2,fontWeight:500}}>🇰🇪 Nairobi</div>
               {/* New staff button for admin */}
+
               {perms.badge==="ADMIN"&&<button className="r-header-newstaff" onClick={()=>setShowCreateModal(true)} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:7,border:"none",background:C.blue,color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer",transition:"all 0.15s"}}
                 onMouseEnter={e=>e.currentTarget.style.background="#4F46E5"} onMouseLeave={e=>e.currentTarget.style.background=C.blue}>
                 + New Staff
@@ -8755,7 +8922,7 @@ export default function App(){
             {view==="pos"&&<ErrorBoundary name="POS">
             <POSView products={products} setProducts={setProducts} perms={perms} cart={cart} setCart={setCart} selCust={selCust} setSelCust={setSelCust} delivery={delivery} setDelivery={setDelivery} discountValue={discountValue} setDiscountValue={setDiscountValue} activeBranch={activeBranch} branches={branches} shopSettings={shopSettings} onQueueAdd={()=>setQueueCount(q=>q+1)}/>
             </ErrorBoundary>}
-            {view==="inv"&&<InventoryView products={products} perms={perms} fetchProducts={fetchProducts} branches={branches} activeBranch={activeBranch} pendingTransfers={pendingTransfers} setPendingTransfers={setPendingTransfers} fetchPendingTransfers={fetchPendingTransfers} shopSettings={shopSettings}/>}
+            {view==="inv"&&<InventoryView products={products} perms={perms} fetchProducts={fetchProducts} branches={branches} activeBranch={activeBranch} pendingTransfers={pendingTransfers} setPendingTransfers={setPendingTransfers} fetchPendingTransfers={fetchPendingTransfers} shopSettings={shopSettings} externalScanOpen={invScanOpen} onExternalScanClose={()=>setInvScanOpen(false)}/>}
             {view==="cust"&&<CustomersView perms={perms}/>}
             {view==="reports"&&<ErrorBoundary name="Analytics"><ReportsView perms={perms}/></ErrorBoundary>}
             {view==="refunds"&&<RefundsView perms={perms} branches={branches} activeBranch={activeBranch} fetchProducts={fetchProducts}/>}
@@ -8764,9 +8931,36 @@ export default function App(){
           </div>
         </div>
       </div>
+      {/* ── Fixed Receive Stock button — visible on Stock page ── */}
+      {view==="inv"&&(
+        <button
+          onClick={()=>setReceiveStockOpen(true)}
+          style={{
+            position:"fixed",
+            bottom:80,
+            left:"50%",
+            transform:"translateX(-50%)",
+            zIndex:9999,
+            display:"flex",alignItems:"center",gap:8,
+            padding:"12px 24px",
+            borderRadius:50,
+            border:"none",
+            background:`linear-gradient(135deg,${C.green},#16a34a)`,
+            color:"#000",
+            fontSize:15,fontWeight:800,
+            cursor:"pointer",
+            boxShadow:"0 4px 20px rgba(34,197,94,0.5)",
+            whiteSpace:"nowrap",
+          }}
+        >
+          📷 Receive Stock
+        </button>
+      )}
+
       {showCreateModal&&<Modal title="Create Staff Account" onClose={()=>setShowCreateModal(false)}><CreateStaffForm branches={branches}/></Modal>}
       {showSwitchModal&&<SwitchUserModal onSwitch={handleSwitch} onClose={()=>setShowSwitchModal(false)}/>}
-      {showProfileModal&&<ProfileModal user={user} onClose={()=>setShowProfileModal(false)} onUpdated={(updated)=>{setUser(u=>({...u,...updated}));setShowProfileModal(false);}}/>}
+      {showProfileModal&&<ProfileModal user={user} onClose={()=>setShowProfileModal(false)} onUpdated={(updated)=>{setUser(u=>({...u,...updated}));setShowProfileModal(false);}}/> }
+      {receiveStockOpen&&<ReceiveStock products={products} activeBranch={activeBranch} onClose={()=>setReceiveStockOpen(false)} onStockUpdated={()=>fetchProducts(undefined,{skipCache:true})}/>}
 
       {/* ── Mobile bottom navigation ──────────────────────────── */}
       <nav className="r-bnav">
