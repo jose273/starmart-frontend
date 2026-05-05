@@ -765,13 +765,13 @@ function printReceipt(order) {
   const w=window.open("","_blank","width=420,height=600");
   if(w){w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Courier New',monospace;font-size:12px;width:300px;margin:0 auto;padding:12px;}
-    h1{font-size:18px;text-align:center;margin-bottom:2px;}
-    .s{text-align:center;font-size:10px;color:#555;margin-bottom:8px;}
+    body{font-family:'Courier New',monospace;font-size:15px;width:300px;margin:0 auto;padding:12px;}
+    h1{font-size:22px;text-align:center;margin-bottom:2px;}
+    .s{text-align:center;font-size:13px;color:#555;margin-bottom:8px;}
     hr{border:none;border-top:1px dashed #999;margin:8px 0;}
     table{width:100%;border-collapse:collapse;}
-    td{padding:3px 2px;}
-    .t{font-weight:700;font-size:14px;}
+    td{padding:4px 2px;}
+    .t{font-weight:700;font-size:17px;}
     .c{text-align:center;}
     .delivery-box{background:#f0fdf4;border:2px solid #16a34a;border-radius:6px;padding:10px;margin:8px 0;}
     .delivery-title{font-weight:800;font-size:14px;color:#15803d;text-align:center;letter-spacing:1px;margin-bottom:6px;}
@@ -814,7 +814,7 @@ function printReceipt(order) {
     <tr class="t"><td>TOTAL</td><td style="text-align:right">KSh ${order.total.toLocaleString("en-KE",{minimumFractionDigits:2})}</td></tr>
     <tr><td>Payment</td><td style="text-align:right">${order.method}</td></tr>
     ${order.method==="Cash"&&order.cash>0?`<tr><td>Cash</td><td style="text-align:right">KSh ${order.cash.toLocaleString("en-KE",{minimumFractionDigits:2})}</td></tr>`:""}
-    ${order.method==="Cash"&&order.change>=0?`<tr><td>Change</td><td style="text-align:right">KSh ${order.change.toLocaleString("en-KE",{minimumFractionDigits:2})}</td></tr>`:""}
+    ${order.method==="Cash"?`<tr style="background:#f5f5f5;border-top:2px solid #000"><td style="font-weight:900;color:#000;font-size:15px">CHANGE</td><td style="text-align:right;font-weight:900;color:#000;font-size:15px">KSh ${(order.change||0).toLocaleString("en-KE",{minimumFractionDigits:2})}</td></tr>`:""}
     ${order.pointsRedeemed>0?`<tr><td>Points Redeemed</td><td style="text-align:right">-${order.pointsRedeemed} pts</td></tr>`:""}
     ${order.pointsEarned>0?`<tr><td style="color:#22c55e">Points Earned</td><td style="text-align:right;color:#22c55e">+${order.pointsEarned} pts</td></tr>`:""}
   </table>
@@ -2410,7 +2410,9 @@ function POSView({products,setProducts,perms,cart,setCart,selCust,setSelCust,dis
       }}:{}),
     };
     const methodLabel=method==="mobile"?"M-Pesa":method==="card"?"Card":"Cash";
-    const localOrder={id:"OFFLINE-"+Date.now(),date:new Date().toLocaleString(),customer:selCust?.name||"Walk-in",items:[...cart],subtotal,discount:discountAmt,tax,total,method:methodLabel,cash:method==="cash"?(parseFloat(cashInput)||0):0,delivery:delivery||null};
+    const cashPaid  = method==="cash" ? (parseFloat(cashInput)||0) : 0;
+    const changeDue = method==="cash" ? Math.max(0, cashPaid - total) : 0;
+    const localOrder={id:"OFFLINE-"+Date.now(),date:new Date().toLocaleString(),customer:selCust?.name||"Walk-in",items:[...cart],subtotal,discount:discountAmt,tax,total,method:methodLabel,cash:cashPaid,change:changeDue,delivery:delivery||null};
 
     // ── Optimistic stock deduction (works online AND offline) ──
     setProducts(ps=>ps.map(p=>{const ci=cart.find(c=>c.id===p.id);return ci?{...p,stock:p.stock-ci.qty}:p;}));
